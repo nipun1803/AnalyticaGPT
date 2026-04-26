@@ -1,0 +1,9 @@
+# InsightForge AI
+__pycache__/
+*.pyc
+.env
+data/
+logs/
+*.pkl
+.venv/
+venv/
