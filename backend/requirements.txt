@@ -36,3 +36,7 @@ sqlalchemy==2.0.35
 aiosqlite==0.20.0
 bcrypt==4.2.0
 python-jose[cryptography]==3.3.0
+
+# Background jobs (Redis queue)
+redis==5.0.8
+rq==1.16.2

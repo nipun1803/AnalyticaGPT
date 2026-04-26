@@ -10,8 +10,8 @@ const Input = forwardRef(({ className, type, ...props }, ref) => {
     <input
       type={type}
       className={cn(
-        "flex h-10 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/80 px-4 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500",
-        "focus:outline-none focus:ring-2 focus:ring-violet-600/40 focus:border-orange-600",
+        "flex h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)]",
+        "focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)]/25 focus:border-[var(--color-primary)]",
         "transition-all duration-200 disabled:opacity-50",
         className
       )}

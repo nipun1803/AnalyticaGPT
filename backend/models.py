@@ -104,6 +104,8 @@ class UploadResponse(BaseModel):
     missing_values: Dict[str, int]
     preview: List[Dict[str, Any]]
     message: str
+    job_id: Optional[str] = None
+    indexing_status: Optional[str] = None
 
 
 class SummaryResponse(BaseModel):

@@ -53,6 +53,15 @@ export async function getUploadStatus() {
   return res.data;
 }
 
+export async function downloadSampleDataset() {
+  const res = await api.get('/sample-dataset', { responseType: 'blob' });
+  return res.data;
+}
+
+export async function getJob(jobId) {
+  return (await api.get(`/jobs/${jobId}`)).data;
+}
+
 // ── RAG Query ─────────────────────────────────────────────────
 export async function queryDataset(question, options = {}) {
   const res = await api.post('/query', {
@@ -101,6 +110,21 @@ export async function getSummary() { return (await api.get('/summary')).data; }
 export async function getInsights(role = 'analyst') { return (await api.get('/insights', { params: { role } })).data; }
 export async function getPreview(rows = 10) { return (await api.get('/preview', { params: { rows } })).data; }
 export async function getColumns() { return (await api.get('/columns')).data; }
+
+// ── Datasets (saved projects) ──────────────────────────────────
+export async function listDatasets() { return (await api.get('/datasets')).data; }
+export async function activateDataset(datasetId) { return (await api.post(`/datasets/${datasetId}/activate`)).data; }
+export async function deleteDataset(datasetId) { return (await api.delete(`/datasets/${datasetId}`)).data; }
+
+// ── Pins (share links) ─────────────────────────────────────────
+export async function createPin(title, contentType, contentData) {
+  return (await api.post('/pins', { title, content_type: contentType, content_data: contentData })).data;
+}
+export async function listPins() { return (await api.get('/pins')).data; }
+export async function getPin(pinId) {
+  // public endpoint (no auth required), but keep it through axios instance for baseURL
+  return (await api.get(`/pins/${pinId}`, { withCredentials: false })).data;
+}
 
 // ── Cleaning & EDA ────────────────────────────────────────────
 export async function cleanData(options) { return (await api.post('/data/clean', options)).data; }

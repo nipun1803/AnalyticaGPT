@@ -7,7 +7,7 @@ import { Zap, Mail, Lock, User, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent } from '../components/ui/Card';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 export default function AuthPage() {
   const [mode, setMode] = useState('login'); // login | register

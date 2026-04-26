@@ -90,6 +90,17 @@ class UserSettings(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class DatasetJob(Base):
+    __tablename__ = "dataset_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    dataset_id = Column(String(64), index=True, nullable=False)
+    job_id = Column(String(64), index=True, nullable=False)
+    job_type = Column(String(50), nullable=False)  # e.g. "index", "report"
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class SharedPin(Base):
     __tablename__ = "shared_pins"
 

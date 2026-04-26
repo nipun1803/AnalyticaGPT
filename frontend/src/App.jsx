@@ -4,8 +4,8 @@
  */
 
 import { useState } from 'react';
-import { Toaster } from 'sonner';
-import { useAuth } from './context/AuthContext';
+import { Toaster, toast } from 'sonner';
+import { useAuth } from './context/useAuth';
 import AuthPage from './pages/AuthPage';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
@@ -18,6 +18,8 @@ import InsightsPanel from './pages/InsightsPanel';
 import ReportPanel from './pages/ReportPanel';
 import DataCleaning from './pages/DataCleaning';
 import EDAPanel from './pages/EDAPanel';
+import Pins from './pages/Pins';
+import PublicPin from './pages/PublicPin';
 import { Loader2, Menu, Moon, Sun } from 'lucide-react';
 import { useEffect } from 'react';
 import { getUploadStatus } from './services/api';
@@ -56,19 +58,47 @@ export default function App() {
         })
         .catch(() => {});
     }
+  }, [user, datasetInfo]);
+
+  // Minimal onboarding tour (first login only)
+  useEffect(() => {
+    if (!user) return;
+    const done = localStorage.getItem("onboarding_done");
+    if (done) return;
+    localStorage.setItem("onboarding_done", "1");
+    // Keep it lightweight: a couple of toasts as guidance
+    setTimeout(() => toast.message("Start by uploading a CSV (or use the sample dataset)."), 500);
+    setTimeout(() => toast.message("Then explore Dashboard → Charts → ML → Chat."), 2200);
   }, [user]);
 
   const handleUploadSuccess = (info) => {
     setDatasetInfo(info);
+    setSummaryData(null);
     setActivePage('dashboard');
+  };
+
+  const handleDatasetActivated = (info) => {
+    setDatasetInfo(info);
+    setSummaryData(null);
+    if (info) setActivePage('dashboard');
   };
 
   // Auth loading spinner
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-[color:var(--color-primary)] animate-spin" />
       </div>
+    );
+  }
+
+  const pinId = new URLSearchParams(window.location.search).get('pin');
+  if (pinId) {
+    return (
+      <>
+        <Toaster theme="dark" position="top-right" richColors closeButton />
+        <PublicPin pinId={pinId} onBack={() => { window.history.pushState({}, '', '/'); window.location.reload(); }} />
+      </>
     );
   }
 
@@ -94,6 +124,7 @@ export default function App() {
       case 'eda': return <EDAPanel />;
       case 'chat': return <ChatBox />;
       case 'report': return <ReportPanel />;
+      case 'pins': return <Pins />;
       default: return <FileUpload onSuccess={handleUploadSuccess} />;
     }
   };
@@ -111,18 +142,19 @@ export default function App() {
         setMobileMenuOpen={setMobileMenuOpen}
         theme={theme}
         toggleTheme={toggleTheme}
+        onDatasetActivated={handleDatasetActivated}
       />
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/90 backdrop-blur-md">
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold gradient-text leading-tight">InsightForge</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={toggleTheme} className="p-2 text-zinc-600 dark:text-zinc-400">
+            <button onClick={toggleTheme} className="p-2 text-[var(--color-muted-foreground)]">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-zinc-900 dark:text-zinc-100">
+            <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-[var(--color-foreground)]">
               <Menu className="w-6 h-6" />
             </button>
           </div>

@@ -15,9 +15,10 @@ from fastapi.responses import StreamingResponse, Response
 import io
 from sse_starlette.sse import EventSourceResponse
 from loguru import logger
+from rq.job import Job
 
 from auth import get_current_user
-from database import User, SharedPin, DatasetFile, UserSettings, get_db
+from database import User, SharedPin, DatasetFile, UserSettings, DatasetJob, get_db
 from sqlalchemy.orm import Session
 import uuid
 
@@ -61,6 +62,8 @@ from services.rag.embed import EmbeddingService
 from services.rag.retriever import VectorRetriever
 from services.rag.generator import LLMGenerator
 from services.report import ReportGenerator
+from jobs.queue import get_queue
+from jobs.tasks import index_dataset_task
 
 router = APIRouter()
 
@@ -149,6 +152,20 @@ def _activate_dataset_from_record(state: dict, dataset: DatasetFile):
 # 1. UPLOAD & PROCESS
 # ═══════════════════════════════════════════════════════════════
 
+@router.get("/sample-dataset")
+async def download_sample_dataset(user: User = Depends(get_current_user)):
+    """Download a bundled sample CSV for onboarding."""
+    sample_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_employee_data.csv")
+    if not os.path.exists(sample_path):
+        raise HTTPException(status_code=404, detail="Sample dataset not found")
+    with open(sample_path, "rb") as f:
+        data = f.read()
+    return Response(
+        content=data,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="sample_employee_data.csv"'},
+    )
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_dataset(
     file: UploadFile = File(...),
@@ -200,14 +217,25 @@ async def upload_dataset(
         state["df_processed"] = df.copy()
 
     # RAG: chunk → embed → index
+    job_id = None
     try:
-        chunks = state["embedding_service"].create_chunks(df, file.filename)
-        texts = [c["text"] for c in chunks]
-        embeddings = state["embedding_service"].embed_texts(texts, cache_key=dataset_id)
-        state["retriever"].index_chunks(chunks, embeddings, dataset_id)
-        logger.info(f"Indexed {len(chunks)} chunks into vector DB")
+        q = get_queue("default")
+        job = q.enqueue(
+            index_dataset_task,
+            filepath,
+            dataset_id,
+            file.filename,
+            impute_strategy,
+            normalize,
+            encode_categoricals,
+            job_timeout=900,
+            result_ttl=3600,
+            failure_ttl=3600,
+        )
+        job_id = job.id
+        logger.info(f"Enqueued indexing job {job_id} for dataset {dataset_id}")
     except Exception as e:
-        logger.error(f"RAG indexing failed: {e}")
+        logger.error(f"Failed to enqueue indexing job: {e}")
 
     # Persistence: Log dataset upload
     from database import SessionLocal, DatasetLog
@@ -247,6 +275,10 @@ async def upload_dataset(
         # Set active dataset for this user
         _set_active_dataset(db, user.id, dataset_id)
 
+        if job_id:
+            db.add(DatasetJob(user_id=user.id, dataset_id=dataset_id, job_id=job_id, job_type="index"))
+            db.commit()
+
     return UploadResponse(
         filename=file.filename,
         rows=df.shape[0],
@@ -255,6 +287,8 @@ async def upload_dataset(
         missing_values=get_missing_values(df),
         preview=get_preview(df),
         message=f"Successfully uploaded and processed '{file.filename}'",
+        job_id=job_id,
+        indexing_status="queued" if job_id else "inline",
     )
 
 
@@ -374,6 +408,35 @@ async def delete_dataset(dataset_id: str, user: User = Depends(get_current_user)
     return {"message": "Dataset deleted"}
 
 
+@router.get("/jobs/{job_id}")
+async def get_job_status(job_id: str, user: User = Depends(get_current_user)):
+    """
+    Get status for a background job (indexing/report).
+    """
+    try:
+        job = Job.fetch(job_id, connection=get_queue("default").connection)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Ensure this job belongs to the user
+    from database import SessionLocal
+    with SessionLocal() as db:
+        row = db.query(DatasetJob).filter(DatasetJob.user_id == user.id, DatasetJob.job_id == job_id).first()
+        if not row:
+            raise HTTPException(status_code=403, detail="Not allowed")
+
+    data = {
+        "job_id": job.id,
+        "status": job.get_status(),
+        "enqueued_at": job.enqueued_at.isoformat() if job.enqueued_at else None,
+        "started_at": job.started_at.isoformat() if job.started_at else None,
+        "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+        "result": job.result if job.is_finished else None,
+        "error": job.exc_info if job.is_failed else None,
+    }
+    return data
+
+
 # ═══════════════════════════════════════════════════════════════
 # 2. RAG QUERY
 # ═══════════════════════════════════════════════════════════════
@@ -432,8 +495,16 @@ async def query_dataset(req: QueryRequest, user: User = Depends(get_current_user
             "sources_count": len(docs),
         })
 
-        sources = [{"text": d["text"][:200], "type": d["metadata"].get("type", "unknown"),
-                     "relevance": d.get("relevance_score", 0)} for d in docs]
+        sources = [
+            {
+                "id": hashlib.sha256(d.get("text", "").encode("utf-8", errors="ignore")).hexdigest()[:16],
+                "text": d.get("text", "")[:600],
+                "type": (d.get("metadata") or {}).get("type", "unknown"),
+                "relevance": d.get("relevance_score", 0),
+                "metadata": d.get("metadata") or {},
+            }
+            for d in docs
+        ]
 
         return QueryResponse(
             answer=answer,

@@ -1,35 +1,39 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
-
+/* stylelint/css diagnostics may not recognize Tailwind v4 directives */
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --color-primary: #f97316; /* Orange */
-  --color-accent: #f59e0b; /* Amber */
-  --color-destructive: #ef4444;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  /* Brand (user palette) */
+  --color-primary: #6366F1; /* Indigo */
+  --color-secondary: #8B5CF6; /* Purple */
+  --color-accent: #22D3EE; /* Cyan */
+
+  /* Status */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
 }
 
 :root {
-  --color-background: #fdfdfd;
-  --color-foreground: #0f0f0f;
-  --color-card: #ffffff;
-  --color-card-foreground: #171717;
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
-  --color-border: #e4e4e7;
+  /* Light theme */
+  --color-background: #F8FAFC;
+  --color-foreground: #0F172A;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0F172A;
+  --color-muted: #F1F5F9;
+  --color-muted-foreground: #64748B;
+  --color-border: #E5E7EB;
 }
 
 .dark {
-  --color-background: #121212; /* Matte Black */
-  --color-foreground: #f4f4f5;
-  --color-card: #18181b; /* Slightly lighter Matte Black */
-  --color-card-foreground: #f4f4f5;
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-  --color-border: #3f3f46;
+  /* Dark AI dashboard theme */
+  --color-background: #0B0F19;
+  --color-foreground: #F9FAFB;
+  --color-card: #111827;
+  --color-card-foreground: #F9FAFB;
+  --color-muted: #0F172A;
+  --color-muted-foreground: #9CA3AF;
+  --color-border: #1F2937;
 }
 
 * { box-sizing: border-box; }
@@ -44,6 +48,12 @@ body {
 
 #root { min-height: 100vh; }
 
+/* Theme scrollbar (WebKit) */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(31, 41, 55, 0.9); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.65); }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -53,32 +63,37 @@ body {
 /* Animations */
 @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
-@keyframes pulse-ring { 0%,100% { box-shadow:0 0 0 0 rgba(124,58,237,0.4); } 50% { box-shadow:0 0 0 8px rgba(124,58,237,0); } }
+@keyframes pulse-ring { 0%,100% { box-shadow:0 0 0 0 rgba(99,102,241,0.35); } 50% { box-shadow:0 0 0 10px rgba(99,102,241,0); } }
 
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 .animate-shimmer {
-  background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
+  background: linear-gradient(90deg, rgba(203,213,225,0.35) 25%, rgba(148,163,184,0.45) 50%, rgba(203,213,225,0.35) 75%);
   background-size: 200% 100%; animation: shimmer 1.5s infinite;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, rgba(17,24,39,0.75) 25%, rgba(31,41,55,0.9) 50%, rgba(17,24,39,0.75) 75%);
+  background-size: 200% 100%;
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  background: linear-gradient(135deg, #6366F1, #8B5CF6, #22D3EE);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 
 /* Glass */
 .glass {
-  background: rgba(12, 12, 16, 0.7);
+  background: rgba(17, 24, 39, 0.55);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(39, 39, 42, 0.8);
+  border: 1px solid rgba(31, 41, 55, 0.8);
 }
 
 /* Prose overrides for markdown */
-.prose-custom { color: #d4d4d8; }
-.prose-custom h1,.prose-custom h2,.prose-custom h3,.prose-custom h4 { color:#fafafa; margin-top:1em; }
-.prose-custom strong { color:#e4e4e7; }
-.prose-custom code { background:#27272a; padding:2px 6px; border-radius:6px; font-size:0.85em; color:#c4b5fd; }
+.prose-custom { color: var(--color-muted-foreground); }
+.prose-custom h1,.prose-custom h2,.prose-custom h3,.prose-custom h4 { color: var(--color-foreground); margin-top:1em; }
+.prose-custom strong { color: var(--color-foreground); }
+.prose-custom code { background: rgba(31,41,55,0.6); padding:2px 6px; border-radius:6px; font-size:0.85em; color:#A5B4FC; }
 .prose-custom ul,.prose-custom ol { padding-left:1.2em; }
 .prose-custom li { margin:0.3em 0; }
 .prose-custom p { margin:0.5em 0; line-height:1.7; }

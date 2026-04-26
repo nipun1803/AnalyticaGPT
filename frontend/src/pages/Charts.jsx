@@ -11,16 +11,19 @@ import { Button } from '../components/ui/Button';
 import { SkeletonChart } from '../components/Skeleton';
 import { getSummary } from '../services/api';
 
-const COLORS = ['#7c3aed', '#06b6d4', '#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#a78bfa', '#f472b6'];
-const TT = { contentStyle: { background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#fafafa', fontSize: '12px' } };
+const COLORS = ['#6366F1', '#22D3EE', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#A78BFA'];
+const TT = { contentStyle: { background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '12px', color: 'var(--color-foreground)', fontSize: '12px' } };
 
 export default function Charts({ summaryData, setSummaryData }) {
-  const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('bar');
 
-  useEffect(() => { if (!summaryData) { setLoading(true); getSummary().then(setSummaryData).catch(() => toast.error('Failed')).finally(() => setLoading(false)); } }, [summaryData, setSummaryData]);
+  useEffect(() => {
+    if (!summaryData) {
+      getSummary().then(setSummaryData).catch(() => toast.error('Failed'));
+    }
+  }, [summaryData, setSummaryData]);
 
-  if (loading) return <div className="space-y-6"><SkeletonChart /><SkeletonChart /></div>;
+  if (!summaryData) return <div className="space-y-6"><SkeletonChart /><SkeletonChart /></div>;
 
   const num = summaryData?.statistics?.numeric_summary || {};
   const cat = summaryData?.statistics?.categorical_summary || {};
@@ -40,7 +43,7 @@ export default function Charts({ summaryData, setSummaryData }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div><h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Visualizations</h2><p className="text-zinc-500 text-sm mt-0.5">Interactive charts from your dataset</p></div>
+      <div><h2 className="text-2xl font-bold text-[var(--color-foreground)]">Visualizations</h2><p className="text-[var(--color-muted-foreground)] text-sm mt-0.5">Interactive charts from your dataset</p></div>
       <div className="flex gap-2 flex-wrap">
         {tabs.map(({ key, label, icon: Icon }) => (
           <Button key={key} variant={tab === key ? 'default' : 'secondary'} size="sm" onClick={() => setTab(key)}>
@@ -49,12 +52,12 @@ export default function Charts({ summaryData, setSummaryData }) {
         ))}
       </div>
       <Card><CardContent className="p-6"><div className="h-80">
-        {barData.length === 0 ? <div className="flex items-center justify-center h-full text-zinc-500 text-sm">No numeric data</div> : (
+        {barData.length === 0 ? <div className="flex items-center justify-center h-full text-[var(--color-muted-foreground)] text-sm">No numeric data</div> : (
           <ResponsiveContainer width="100%" height="100%">
             {tab === 'bar' ? (
-              <BarChart data={barData} margin={{ bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.5} /><XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 10 }} angle={-35} textAnchor="end" /><YAxis tick={{ fill: '#71717a', fontSize: 10 }} /><Tooltip {...TT} /><Legend /><Bar dataKey="mean" fill="#7c3aed" radius={[6, 6, 0, 0]} /><Bar dataKey="std" fill="#06b6d4" radius={[6, 6, 0, 0]} /></BarChart>
+              <BarChart data={barData} margin={{ bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} /><XAxis dataKey="name" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} angle={-35} textAnchor="end" /><YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} /><Tooltip {...TT} /><Legend /><Bar dataKey="mean" fill="var(--color-primary)" radius={[6, 6, 0, 0]} /><Bar dataKey="std" fill="var(--color-accent)" radius={[6, 6, 0, 0]} /></BarChart>
             ) : tab === 'line' ? (
-              <LineChart data={barData} margin={{ bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.5} /><XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 10 }} angle={-35} textAnchor="end" /><YAxis tick={{ fill: '#71717a', fontSize: 10 }} /><Tooltip {...TT} /><Legend /><Line type="monotone" dataKey="mean" stroke="#7c3aed" strokeWidth={2.5} dot={{ fill: '#7c3aed', r: 3 }} /><Line type="monotone" dataKey="max" stroke="#06b6d4" strokeWidth={2} /><Line type="monotone" dataKey="min" stroke="#ef4444" strokeWidth={2} /></LineChart>
+              <LineChart data={barData} margin={{ bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} /><XAxis dataKey="name" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} angle={-35} textAnchor="end" /><YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} /><Tooltip {...TT} /><Legend /><Line type="monotone" dataKey="mean" stroke="var(--color-primary)" strokeWidth={2.5} dot={{ fill: 'var(--color-primary)', r: 3 }} /><Line type="monotone" dataKey="max" stroke="var(--color-accent)" strokeWidth={2} /><Line type="monotone" dataKey="min" stroke="var(--color-danger)" strokeWidth={2} /></LineChart>
             ) : tab === 'pie' ? (
               <PieChart><Pie data={catPie.length > 0 ? catPie : pieData} cx="50%" cy="50%" outerRadius={110} innerRadius={45} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} (${(percent*100).toFixed(0)}%)`}>{(catPie.length > 0 ? catPie : pieData).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip {...TT} /><Legend /></PieChart>
             ) : tab === 'radar' ? (

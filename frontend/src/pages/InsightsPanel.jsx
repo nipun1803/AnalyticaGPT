@@ -2,14 +2,14 @@
  * InsightsPanel — AI insights with Lucide, shadcn Cards, role selector.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BarChart3, Briefcase, Crown, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { SkeletonCard } from '../components/Skeleton';
-import { getInsights } from '../services/api';
+import { getInsights, getSummary } from '../services/api';
 
 const ROLES = [
   { value: 'analyst', label: 'Data Analyst', icon: BarChart3, color: '#7c3aed', desc: 'Technical depth, statistical rigor' },
@@ -20,16 +20,28 @@ const ROLES = [
 export default function InsightsPanel() {
   const [role, setRole] = useState('analyst');
   const [insights, setInsights] = useState(null);
+  const [basis, setBasis] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const gen = async () => {
     setLoading(true); setInsights(null);
-    try { const r = await getInsights(role); setInsights(r.insights); } catch { toast.error('Failed to generate'); } finally { setLoading(false); }
+    try {
+      const [r, s] = await Promise.all([getInsights(role), getSummary().catch(() => null)]);
+      setInsights(r.insights);
+      if (s?.statistics?.shape) setBasis(s.statistics.shape);
+    } catch {
+      toast.error('Failed to generate');
+    } finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    // preload basis if possible
+    getSummary().then((s) => s?.statistics?.shape && setBasis(s.statistics.shape)).catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div><h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">AI Insights</h2><p className="text-zinc-500 text-sm mt-0.5">Role-tailored analysis powered by Groq LLM</p></div>
+      <div><h2 className="text-2xl font-bold text-[var(--color-foreground)]">AI Insights</h2><p className="text-[var(--color-muted-foreground)] text-sm mt-0.5">Role-tailored analysis powered by Groq LLM</p></div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {ROLES.map((r) => (
@@ -62,6 +74,18 @@ export default function InsightsPanel() {
               <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{ROLES.find(x => x.value === role)?.label} Perspective</span>
             </div>
             <div className="prose-custom text-sm"><ReactMarkdown>{insights}</ReactMarkdown></div>
+
+            {basis && (
+              <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
+                  Based on current dataset summary
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+                  Rows: <span className="text-[var(--color-foreground)] font-medium">{basis.rows}</span>, Columns:{" "}
+                  <span className="text-[var(--color-foreground)] font-medium">{basis.columns}</span>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

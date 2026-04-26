@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     JWT_EXPIRE_HOURS: int = 72
     DATABASE_URL: str = "sqlite:///./data/insightforge.db"
 
+    # ── Background Jobs ────────────────────────────────────────
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]

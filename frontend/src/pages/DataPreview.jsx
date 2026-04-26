@@ -3,9 +3,9 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Hash, Type, Columns3, ChevronDown, Download, FileJson, FileSpreadsheet, FileText } from 'lucide-react';
+import { Search, Hash, Type, Columns3, ChevronDown, FileJson, FileSpreadsheet, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -38,7 +38,7 @@ export default function DataPreview() {
     try {
       await exportData(format);
       toast.success(`Exported as ${format.toUpperCase()}`);
-    } catch (err) {
+    } catch {
       toast.error('Export failed');
     } finally {
       setExporting(null);

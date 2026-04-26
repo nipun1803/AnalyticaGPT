@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { LayoutGrid, PieChart as PieIcon, BarChart3, Loader2, Info } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Loader2, Info } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { getEDA } from '../services/api';
 

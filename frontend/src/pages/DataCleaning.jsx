@@ -29,7 +29,7 @@ export default function DataCleaning({ onCleanSuccess }) {
       setReport({ type: 'engineering', new_features: res.new_features });
       toast.success(res.message);
       if (onCleanSuccess) onCleanSuccess();
-    } catch (err) {
+    } catch {
       toast.error('Feature engineering failed');
     } finally {
       setEngineering(false);
@@ -43,7 +43,7 @@ export default function DataCleaning({ onCleanSuccess }) {
       setReport({ type: 'cleaning', ...res.report });
       toast.success(res.message);
       if (onCleanSuccess) onCleanSuccess();
-    } catch (err) {
+    } catch {
       toast.error('Cleaning failed');
     } finally {
       setLoading(false);
