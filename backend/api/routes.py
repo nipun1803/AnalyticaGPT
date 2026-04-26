@@ -5,6 +5,7 @@ All FastAPI endpoints: upload, query, summary, ML, report, chat history.
 
 import os
 import json
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
@@ -16,7 +17,7 @@ from sse_starlette.sse import EventSourceResponse
 from loguru import logger
 
 from auth import get_current_user
-from database import User, SharedPin, get_db
+from database import User, SharedPin, DatasetFile, UserSettings, get_db
 from sqlalchemy.orm import Session
 import uuid
 
@@ -96,6 +97,54 @@ def _require_dataset(user_id: int):
     return state
 
 
+def _set_active_dataset(db: Session, user_id: int, dataset_id: str | None):
+    settings_row = db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+    if not settings_row:
+        settings_row = UserSettings(user_id=user_id, active_dataset_id=dataset_id)
+        db.add(settings_row)
+    else:
+        settings_row.active_dataset_id = dataset_id
+        settings_row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def _activate_dataset_from_record(state: dict, dataset: DatasetFile):
+    """
+    Load dataset from disk into in-memory user state and (re)index it for RAG.
+    """
+    df = parse_csv(dataset.file_path)
+    state["df_raw"] = df.copy()
+    state["dataset_name"] = dataset.filename
+    state["dataset_id"] = dataset.dataset_id
+
+    # Keep ML/RAG state consistent across dataset switches
+    state["ml_results"] = {}
+    state["chat_history"] = []
+
+    # Preprocess for ML if needed
+    try:
+        df_processed = state["preprocessor"].fit_transform(
+            df.copy(),
+            impute_strategy="mean",
+            normalize=True,
+            encode_categoricals=True,
+        )
+        state["df_processed"] = df_processed
+    except Exception as e:
+        logger.error(f"Preprocessing failed during activate: {e}")
+        state["df_processed"] = df.copy()
+
+    # (Re)index for RAG so chat works after switching
+    try:
+        chunks = state["embedding_service"].create_chunks(df, dataset.filename)
+        texts = [c["text"] for c in chunks]
+        embeddings = state["embedding_service"].embed_texts(texts, cache_key=dataset.dataset_id)
+        state["retriever"].index_chunks(chunks, embeddings, dataset.dataset_id)
+        logger.info(f"Activated + indexed dataset {dataset.dataset_id} ({len(chunks)} chunks)")
+    except Exception as e:
+        logger.error(f"RAG indexing failed during activate: {e}")
+
+
 # ═══════════════════════════════════════════════════════════════
 # 1. UPLOAD & PROCESS
 # ═══════════════════════════════════════════════════════════════
@@ -114,9 +163,14 @@ async def upload_dataset(
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
-    # Save file
-    filepath = os.path.join(settings.UPLOAD_DIR, file.filename)
     content = await file.read()
+
+    # Compute dataset_id from content (stable, avoids filename collisions)
+    dataset_id = hashlib.sha256(content).hexdigest()[:16]
+
+    # Save file with dataset_id prefix to avoid overwrites
+    safe_name = f"{dataset_id}_{file.filename}"
+    filepath = os.path.join(settings.UPLOAD_DIR, safe_name)
     with open(filepath, "wb") as f:
         f.write(content)
     logger.info(f"File saved: {filepath} ({len(content)} bytes)")
@@ -127,7 +181,6 @@ async def upload_dataset(
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Failed to parse CSV: {str(e)}")
 
-    dataset_id = file_hash(filepath)
     state = get_user_state(user.id)
     state["df_raw"] = df.copy()
     state["dataset_name"] = file.filename
@@ -167,7 +220,32 @@ async def upload_dataset(
             dataset_id=dataset_id,
         )
         db.add(log)
+        # Upsert DatasetFile (per user, per dataset_id)
+        existing = db.query(DatasetFile).filter(
+            DatasetFile.user_id == user.id,
+            DatasetFile.dataset_id == dataset_id,
+        ).first()
+        if not existing:
+            existing = DatasetFile(
+                user_id=user.id,
+                dataset_id=dataset_id,
+                filename=file.filename,
+                file_path=filepath,
+                rows=df.shape[0],
+                columns=df.shape[1],
+                last_used_at=datetime.now(timezone.utc),
+            )
+            db.add(existing)
+        else:
+            existing.filename = file.filename
+            existing.file_path = filepath
+            existing.rows = df.shape[0]
+            existing.columns = df.shape[1]
+            existing.last_used_at = datetime.now(timezone.utc)
         db.commit()
+
+        # Set active dataset for this user
+        _set_active_dataset(db, user.id, dataset_id)
 
     return UploadResponse(
         filename=file.filename,
@@ -184,6 +262,23 @@ async def upload_dataset(
 async def get_upload_status(user: User = Depends(get_current_user)):
     """Check if a dataset is currently loaded in memory for this user."""
     state = get_user_state(user.id)
+    # If nothing loaded in memory, try to auto-rehydrate from active dataset setting.
+    if state["df_raw"] is None:
+        from database import SessionLocal
+        with SessionLocal() as db:
+            settings_row = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+            if settings_row and settings_row.active_dataset_id:
+                ds = db.query(DatasetFile).filter(
+                    DatasetFile.user_id == user.id,
+                    DatasetFile.dataset_id == settings_row.active_dataset_id,
+                ).first()
+                if ds:
+                    try:
+                        _activate_dataset_from_record(state, ds)
+                        ds.last_used_at = datetime.now(timezone.utc)
+                        db.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to rehydrate active dataset: {e}")
     if state["df_raw"] is not None:
         return {
             "filename": state["dataset_name"],
@@ -195,6 +290,88 @@ async def get_upload_status(user: User = Depends(get_current_user)):
             "dataset_id": state["dataset_id"],
         }
     return None
+
+
+@router.get("/datasets")
+async def list_datasets(user: User = Depends(get_current_user)):
+    """List all persisted datasets for the current user."""
+    from database import SessionLocal
+    with SessionLocal() as db:
+        settings_row = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        active_id = settings_row.active_dataset_id if settings_row else None
+        rows = (
+            db.query(DatasetFile)
+            .filter(DatasetFile.user_id == user.id)
+            .order_by(DatasetFile.last_used_at.desc().nullslast(), DatasetFile.created_at.desc())
+            .all()
+        )
+        return [
+            {
+                "dataset_id": r.dataset_id,
+                "filename": r.filename,
+                "rows": r.rows,
+                "columns": r.columns,
+                "created_at": r.created_at.isoformat(),
+                "last_used_at": r.last_used_at.isoformat() if r.last_used_at else None,
+                "active": r.dataset_id == active_id,
+            }
+            for r in rows
+        ]
+
+
+@router.post("/datasets/{dataset_id}/activate")
+async def activate_dataset(dataset_id: str, user: User = Depends(get_current_user)):
+    """Switch the active dataset for the current user (rehydrates in-memory state)."""
+    from database import SessionLocal
+    with SessionLocal() as db:
+        ds = db.query(DatasetFile).filter(DatasetFile.user_id == user.id, DatasetFile.dataset_id == dataset_id).first()
+        if not ds:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        state = get_user_state(user.id)
+        try:
+            _activate_dataset_from_record(state, ds)
+        except Exception as e:
+            logger.error(f"Activation failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to activate dataset")
+        ds.last_used_at = datetime.now(timezone.utc)
+        db.commit()
+        _set_active_dataset(db, user.id, dataset_id)
+
+        return {
+            "dataset_id": ds.dataset_id,
+            "filename": ds.filename,
+            "rows": len(state["df_raw"]),
+            "columns": len(state["df_raw"].columns),
+            "column_types": get_column_info(state["df_raw"]),
+            "missing_values": get_missing_values(state["df_raw"]),
+            "preview": get_preview(state["df_raw"]),
+        }
+
+
+@router.delete("/datasets/{dataset_id}")
+async def delete_dataset(dataset_id: str, user: User = Depends(get_current_user)):
+    """Delete a dataset record for the user (does not delete shared pins/history)."""
+    from database import SessionLocal
+    with SessionLocal() as db:
+        ds = db.query(DatasetFile).filter(DatasetFile.user_id == user.id, DatasetFile.dataset_id == dataset_id).first()
+        if not ds:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        db.delete(ds)
+        # If deleting active dataset, clear it
+        settings_row = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        if settings_row and settings_row.active_dataset_id == dataset_id:
+            settings_row.active_dataset_id = None
+            settings_row.updated_at = datetime.now(timezone.utc)
+        db.commit()
+    state = get_user_state(user.id)
+    if state.get("dataset_id") == dataset_id:
+        state["df_raw"] = None
+        state["df_processed"] = None
+        state["dataset_name"] = None
+        state["dataset_id"] = None
+        state["ml_results"] = {}
+        state["chat_history"] = []
+    return {"message": "Dataset deleted"}
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -59,6 +59,37 @@ class DatasetLog(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class DatasetFile(Base):
+    """
+    Persistent dataset registry per user.
+    Stores the file path so users can switch datasets without re-uploading.
+    """
+
+    __tablename__ = "dataset_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    dataset_id = Column(String(64), index=True, nullable=False)
+    filename = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    rows = Column(Integer, default=0)
+    columns = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = Column(DateTime, nullable=True)
+
+
+class UserSettings(Base):
+    """
+    Small per-user settings. MVP: track active dataset.
+    """
+
+    __tablename__ = "user_settings"
+
+    user_id = Column(Integer, primary_key=True, index=True)
+    active_dataset_id = Column(String(64), nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class SharedPin(Base):
     __tablename__ = "shared_pins"
 
