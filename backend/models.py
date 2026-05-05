@@ -83,10 +83,23 @@ class AnomalyRequest(BaseModel):
     feature_columns: Optional[List[str]] = None
 
 
+class ClassifyRequest(BaseModel):
+    target_column: str
+    feature_columns: Optional[List[str]] = None
+    test_size: float = Field(default=0.2, ge=0.05, le=0.5)
+    n_estimators: int = Field(default=100, ge=10, le=1000)
+
+
 class ForecastRequest(BaseModel):
     date_column: str
     target_column: str
     periods: int = Field(default=30, ge=1, le=365)
+
+
+class StatTestRequest(BaseModel):
+    col1: str
+    col2: str
+    test_type: str = "auto"
 
 
 class UploadConfig(BaseModel):
@@ -148,11 +161,50 @@ class AnomalyResponse(BaseModel):
     explanation: str
 
 
+class ClassifyResponse(BaseModel):
+    task: str
+    target: str
+    metrics: Dict[str, Any]
+    confusion_matrix: Dict[str, Any]
+    feature_importance: List[Dict[str, Any]]
+    per_class_metrics: Dict[str, Any]
+    class_names: List[str]
+    explanation: str
+
+
 class ForecastResponse(BaseModel):
     historical: List[Dict[str, Any]]
     forecast: List[Dict[str, Any]]
     metrics: Dict[str, float]
     explanation: str
+
+
+class StatTestResponse(BaseModel):
+    test_type: str
+    col1: str
+    col2: str
+    statistic: float
+    p_value: float
+    significant: bool
+    interpretation: str
+    # Flexible fields for different tests
+    effect_size_cohens_d: Optional[float] = None
+    effect_size_rank_biserial: Optional[float] = None
+    effect_size_cramers_v: Optional[float] = None
+    effect_size_eta_squared: Optional[float] = None
+    mean_col1: Optional[float] = None
+    mean_col2: Optional[float] = None
+    median_col1: Optional[float] = None
+    median_col2: Optional[float] = None
+    std_col1: Optional[float] = None
+    std_col2: Optional[float] = None
+    equal_variance_p: Optional[float] = None
+    degrees_of_freedom: Optional[int] = None
+    contingency_table: Optional[Dict[str, Any]] = None
+    group_means: Optional[Dict[str, float]] = None
+    n_groups: Optional[int] = None
+    numeric_column: Optional[str] = None
+    group_column: Optional[str] = None
 
 
 class PinCreateRequest(BaseModel):

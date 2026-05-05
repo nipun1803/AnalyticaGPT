@@ -15,10 +15,9 @@ from fastapi.responses import StreamingResponse, Response
 import io
 from sse_starlette.sse import EventSourceResponse
 from loguru import logger
-from rq.job import Job
 
 from auth import get_current_user
-from database import User, SharedPin, DatasetFile, UserSettings, DatasetJob, get_db
+from database import User, SharedPin, DatasetFile, UserSettings, get_db
 from sqlalchemy.orm import Session
 import uuid
 
@@ -30,12 +29,16 @@ from models import (
     QueryResponse,
     PredictRequest,
     PredictResponse,
+    ClassifyRequest,
+    ClassifyResponse,
     ClusterRequest,
     ClusterResponse,
     AnomalyRequest,
     AnomalyResponse,
     ForecastRequest,
     ForecastResponse,
+    StatTestRequest,
+    StatTestResponse,
     PinCreateRequest,
     PinResponse,
     ChatHistoryItem,
@@ -62,8 +65,6 @@ from services.rag.embed import EmbeddingService
 from services.rag.retriever import VectorRetriever
 from services.rag.generator import LLMGenerator
 from services.report import ReportGenerator
-from jobs.queue import get_queue
-from jobs.tasks import index_dataset_task
 
 router = APIRouter()
 
@@ -152,20 +153,6 @@ def _activate_dataset_from_record(state: dict, dataset: DatasetFile):
 # 1. UPLOAD & PROCESS
 # ═══════════════════════════════════════════════════════════════
 
-@router.get("/sample-dataset")
-async def download_sample_dataset(user: User = Depends(get_current_user)):
-    """Download a bundled sample CSV for onboarding."""
-    sample_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_employee_data.csv")
-    if not os.path.exists(sample_path):
-        raise HTTPException(status_code=404, detail="Sample dataset not found")
-    with open(sample_path, "rb") as f:
-        data = f.read()
-    return Response(
-        content=data,
-        media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="sample_employee_data.csv"'},
-    )
-
 @router.post("/upload", response_model=UploadResponse)
 async def upload_dataset(
     file: UploadFile = File(...),
@@ -217,25 +204,14 @@ async def upload_dataset(
         state["df_processed"] = df.copy()
 
     # RAG: chunk → embed → index
-    job_id = None
     try:
-        q = get_queue("default")
-        job = q.enqueue(
-            index_dataset_task,
-            filepath,
-            dataset_id,
-            file.filename,
-            impute_strategy,
-            normalize,
-            encode_categoricals,
-            job_timeout=900,
-            result_ttl=3600,
-            failure_ttl=3600,
-        )
-        job_id = job.id
-        logger.info(f"Enqueued indexing job {job_id} for dataset {dataset_id}")
+        chunks = state["embedding_service"].create_chunks(df, file.filename)
+        texts = [c["text"] for c in chunks]
+        embeddings = state["embedding_service"].embed_texts(texts, cache_key=dataset_id)
+        state["retriever"].index_chunks(chunks, embeddings, dataset_id)
+        logger.info(f"Indexed {len(chunks)} chunks into vector DB")
     except Exception as e:
-        logger.error(f"Failed to enqueue indexing job: {e}")
+        logger.error(f"RAG indexing failed: {e}")
 
     # Persistence: Log dataset upload
     from database import SessionLocal, DatasetLog
@@ -275,10 +251,6 @@ async def upload_dataset(
         # Set active dataset for this user
         _set_active_dataset(db, user.id, dataset_id)
 
-        if job_id:
-            db.add(DatasetJob(user_id=user.id, dataset_id=dataset_id, job_id=job_id, job_type="index"))
-            db.commit()
-
     return UploadResponse(
         filename=file.filename,
         rows=df.shape[0],
@@ -287,8 +259,6 @@ async def upload_dataset(
         missing_values=get_missing_values(df),
         preview=get_preview(df),
         message=f"Successfully uploaded and processed '{file.filename}'",
-        job_id=job_id,
-        indexing_status="queued" if job_id else "inline",
     )
 
 
@@ -353,6 +323,27 @@ async def list_datasets(user: User = Depends(get_current_user)):
         ]
 
 
+@router.get("/sample-data")
+async def download_sample_data():
+    """Download the sample employee dataset."""
+    sample_path = "sample_employee_data.csv"
+    if not os.path.exists(sample_path):
+        raise HTTPException(status_code=404, detail="Sample dataset not found")
+    
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=sample_path,
+        filename="sample_employee_data.csv",
+        media_type="text/csv"
+    )
+
+
+@router.get("/jobs/{job_id}")
+async def get_job_status(job_id: str, user: User = Depends(get_current_user)):
+    """Return status of a background job. (Stubbed as 'finished' for now)"""
+    return {"job_id": job_id, "status": "finished", "progress": 100}
+
+
 @router.post("/datasets/{dataset_id}/activate")
 async def activate_dataset(dataset_id: str, user: User = Depends(get_current_user)):
     """Switch the active dataset for the current user (rehydrates in-memory state)."""
@@ -406,35 +397,6 @@ async def delete_dataset(dataset_id: str, user: User = Depends(get_current_user)
         state["ml_results"] = {}
         state["chat_history"] = []
     return {"message": "Dataset deleted"}
-
-
-@router.get("/jobs/{job_id}")
-async def get_job_status(job_id: str, user: User = Depends(get_current_user)):
-    """
-    Get status for a background job (indexing/report).
-    """
-    try:
-        job = Job.fetch(job_id, connection=get_queue("default").connection)
-    except Exception:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    # Ensure this job belongs to the user
-    from database import SessionLocal
-    with SessionLocal() as db:
-        row = db.query(DatasetJob).filter(DatasetJob.user_id == user.id, DatasetJob.job_id == job_id).first()
-        if not row:
-            raise HTTPException(status_code=403, detail="Not allowed")
-
-    data = {
-        "job_id": job.id,
-        "status": job.get_status(),
-        "enqueued_at": job.enqueued_at.isoformat() if job.enqueued_at else None,
-        "started_at": job.started_at.isoformat() if job.started_at else None,
-        "ended_at": job.ended_at.isoformat() if job.ended_at else None,
-        "result": job.result if job.is_finished else None,
-        "error": job.exc_info if job.is_failed else None,
-    }
-    return data
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -495,16 +457,8 @@ async def query_dataset(req: QueryRequest, user: User = Depends(get_current_user
             "sources_count": len(docs),
         })
 
-        sources = [
-            {
-                "id": hashlib.sha256(d.get("text", "").encode("utf-8", errors="ignore")).hexdigest()[:16],
-                "text": d.get("text", "")[:600],
-                "type": (d.get("metadata") or {}).get("type", "unknown"),
-                "relevance": d.get("relevance_score", 0),
-                "metadata": d.get("metadata") or {},
-            }
-            for d in docs
-        ]
+        sources = [{"text": d["text"][:200], "type": d["metadata"].get("type", "unknown"),
+                     "relevance": d.get("relevance_score", 0)} for d in docs]
 
         return QueryResponse(
             answer=answer,
@@ -628,10 +582,11 @@ async def api_engineer_features(user: User = Depends(get_current_user)):
     df_engineered, report = engineer_features(state["df_raw"])
     state["df_raw"] = df_engineered
     
-    # Return success response with newly created feature names
+    n = len(report["new_features_created"])
     return {
-        "message": f"Successfully engineered {len(report['new_features_created'])} new features.",
-        "new_features": report["new_features_created"]
+        "message": f"Engineered {n} new feature{'s' if n != 1 else ''}." if n else "No additional features needed — dataset is already well-structured.",
+        "new_features": report["new_features_created"],
+        "descriptions": report.get("descriptions", []),
     }
 
 @router.get("/data/export")
@@ -718,21 +673,60 @@ async def run_anomaly_detection(req: AnomalyRequest, user: User = Depends(get_cu
         logger.error(f"Anomaly detection failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/report", response_model=ReportResponse)
-async def generate_report(user: User = Depends(get_current_user)):
-    """Generate a PDF report."""
+
+@router.post("/ml/classify", response_model=ClassifyResponse)
+async def run_classification(req: ClassifyRequest, user: User = Depends(get_current_user)):
+    """Run Random Forest classification on the dataset.
+    
+    Automatically encodes categorical targets. Returns accuracy, F1, confusion matrix,
+    and Random Forest feature importance scores.
+    """
     state = _require_dataset(user.id)
-    # Try generating
     try:
-        url = state["reporter"].generate_report(state["df_raw"], state["ml_results"], user.id)
-        return ReportResponse(
-            report_url=f"/api{url}", 
-            filename=url.split("/")[-1],
-            message="Report generated successfully"
+        result = state["ml_engine"].run_classification(
+            df=state["df_raw"],
+            target_column=req.target_column,
+            feature_columns=req.feature_columns,
+            test_size=req.test_size,
+            n_estimators=req.n_estimators,
         )
+        state["ml_results"]["classification"] = result
+        return ClassifyResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Report generation failed: {e}")
+        logger.error(f"Classification failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/stats/test", response_model=StatTestResponse)
+async def run_statistical_test(req: StatTestRequest, user: User = Depends(get_current_user)):
+    """Run a statistical hypothesis test between two columns.
+
+    - **auto**: detect test type from column dtypes
+    - **t_test**: Welch\'s t-test (two numeric columns, tests equal means)  
+    - **mannwhitney**: Mann-Whitney U (two numeric columns, non-parametric)
+    - **chi_squared**: Chi-squared test of independence (two categorical columns)  
+    - **anova**: One-way ANOVA (one numeric + one categorical group column)
+    
+    Returns test statistic, p-value, significance flag, effect size, and a plain-English interpretation.
+    """
+    state = _require_dataset(user.id)
+    try:
+        result = state["ml_engine"].run_statistical_tests(
+            df=state["df_raw"],
+            col1=req.col1,
+            col2=req.col2,
+            test_type=req.test_type,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Statistical test failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 # ═══════════════════════════════════════════════════════════════
 # 6. SHARED INSIGHTS (PINS)

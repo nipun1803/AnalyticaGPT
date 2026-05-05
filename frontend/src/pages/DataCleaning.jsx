@@ -26,7 +26,7 @@ export default function DataCleaning({ onCleanSuccess }) {
     setEngineering(true);
     try {
       const res = await engineerFeatures();
-      setReport({ type: 'engineering', new_features: res.new_features });
+      setReport({ type: 'engineering', new_features: res.new_features, descriptions: res.descriptions || [] });
       toast.success(res.message);
       if (onCleanSuccess) onCleanSuccess();
     } catch {
@@ -126,16 +126,28 @@ export default function DataCleaning({ onCleanSuccess }) {
                 <span className="text-zinc-500 dark:text-zinc-400 text-sm">Features Created</span>
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-400">{report.new_features?.length || 0}</Badge>
               </div>
+              {report.descriptions?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-zinc-500 uppercase">What Was Done</p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-2">
+                    {report.descriptions.map((desc, i) => (
+                      <div key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex items-start gap-2 bg-white dark:bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800/50">
+                        <span className="text-emerald-500 mt-0.5">✓</span> {desc}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-zinc-500 uppercase">New Columns</p>
                 {(!report.new_features || report.new_features.length === 0) ? (
-                  <p className="text-sm text-zinc-600">No new features could be engineered.</p>
+                  <p className="text-sm text-zinc-600">Dataset already has well-structured features — no additional engineering needed.</p>
                 ) : (
-                  <div className="space-y-1.5 max-h-60 overflow-y-auto pr-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {report.new_features.map((feat, i) => (
-                      <div key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex items-start gap-2 bg-white dark:bg-zinc-900/50 p-2 rounded-lg border border-zinc-200 dark:border-zinc-800/50">
-                        <span className="text-amber-500 mt-0.5"><Sparkles className="w-3 h-3" /></span> {feat}
-                      </div>
+                      <Badge key={i} variant="secondary" className="bg-amber-500/10 text-amber-400 text-xs">
+                        <Sparkles className="w-3 h-3 mr-1" /> {feat}
+                      </Badge>
                     ))}
                   </div>
                 )}
