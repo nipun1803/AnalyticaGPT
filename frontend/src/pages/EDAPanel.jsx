@@ -9,9 +9,10 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Loader2, Info, FlaskConical, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import EmptyState from '../components/EmptyState';
 import { toast } from 'sonner';
 import { getEDA, getColumns, runStatTest } from '../services/api';
 
@@ -277,9 +278,7 @@ export default function EDAPanel() {
       )}
 
       {numericDists.length === 0 && categoricalDists.length === 0 && (
-        <Card className="p-8 text-center">
-          <p className="text-[var(--color-muted-foreground)]">No distributions to display for this dataset.</p>
-        </Card>
+        <EmptyState icon={FlaskConical} title="No Distributions" description="We could not generate meaningful distributions for this dataset." />
       )}
 
       <Card className="p-4 bg-[color:var(--color-primary)]/5 border-[color:var(--color-primary)]/20 flex items-start gap-3">

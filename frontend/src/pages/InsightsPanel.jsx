@@ -12,9 +12,9 @@ import { SkeletonCard } from '../components/Skeleton';
 import { getInsights, getSummary } from '../services/api';
 
 const ROLES = [
-  { value: 'analyst', label: 'Data Analyst', icon: BarChart3, color: '#7c3aed', desc: 'Technical depth, statistical rigor' },
-  { value: 'manager', label: 'Manager', icon: Briefcase, color: '#06b6d4', desc: 'Actionable KPIs, team implications' },
-  { value: 'ceo', label: 'CEO', icon: Crown, color: '#f59e0b', desc: 'Strategic vision, ROI focus' },
+  { value: 'analyst', label: 'Data Analyst', icon: BarChart3, color: '#52525b', desc: 'Technical depth, statistical rigor' },
+  { value: 'manager', label: 'Manager', icon: Briefcase, color: '#71717a', desc: 'Actionable KPIs, team implications' },
+  { value: 'ceo', label: 'CEO', icon: Crown, color: '#a1a1aa', desc: 'Strategic vision, ROI focus' },
 ];
 
 export default function InsightsPanel() {
@@ -47,8 +47,8 @@ export default function InsightsPanel() {
         {ROLES.map((r) => (
           <button key={r.value} onClick={() => setRole(r.value)}
             className={`text-left rounded-2xl p-5 border transition-all duration-200 group ${
-              role === r.value ? 'border-orange-600/40 bg-orange-600/5 shadow-lg' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 hover:border-zinc-300 dark:border-zinc-700'
-            }`} style={role === r.value ? { boxShadow: `0 0 30px ${r.color}10` } : {}}>
+              role === r.value ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 shadow-sm' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black hover:border-zinc-300 dark:border-zinc-700'
+            }`}>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${r.color}15` }}>
                 <r.icon className="w-5 h-5" style={{ color: r.color }} />

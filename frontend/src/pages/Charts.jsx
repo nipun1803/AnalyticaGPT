@@ -7,14 +7,15 @@ import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ScatterChart, Scatter, RadarChart, Radar, PolarGrid,
+  RadarChart, Radar, PolarGrid,
   PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity, Loader2 } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { SkeletonChart } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 import { getSummary } from '../services/api';
 
 const COLORS = ['#6366F1', '#22D3EE', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#A78BFA'];
@@ -30,13 +31,22 @@ export default function Charts({ summaryData, setSummaryData }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     if (!summaryData) {
-      setLoading(true);
-      getSummary()
-        .then(setSummaryData)
-        .catch(() => toast.error('Failed to load summary'))
-        .finally(() => setLoading(false));
+      const fetchSummary = async () => {
+        setLoading(true);
+        try {
+          const data = await getSummary();
+          if (mounted) setSummaryData(data);
+        } catch (error) {
+          if (mounted) toast.error('Failed to load summary');
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      };
+      fetchSummary();
     }
+    return () => { mounted = false; };
   }, [summaryData, setSummaryData]);
 
   if (loading || !summaryData) {
@@ -123,7 +133,7 @@ export default function Charts({ summaryData, setSummaryData }) {
             <CardContent>
               <div className="h-80">
                 {statsData.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-[var(--color-muted-foreground)] text-sm">No numeric data</div>
+                  <EmptyState icon={BarChart3} title="No Numeric Data" description="This dataset does not contain any numeric columns to chart." />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={statsData} margin={{ bottom: 60 }}>
@@ -246,9 +256,9 @@ export default function Charts({ summaryData, setSummaryData }) {
           )}
 
           {catCols.length === 0 && (
-            <Card className="p-8 text-center">
-              <p className="text-[var(--color-muted-foreground)]">No categorical columns in this dataset.</p>
-            </Card>
+            <div className="mt-8">
+              <EmptyState icon={PieChartIcon} title="No Categorical Data" description="This dataset does not contain any categorical columns." />
+            </div>
           )}
         </div>
       )}

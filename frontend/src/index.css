@@ -3,10 +3,10 @@
 /* stylelint/css diagnostics may not recognize Tailwind v4 directives */
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  /* Brand (user palette) */
-  --color-primary: #6366F1; /* Indigo */
-  --color-secondary: #8B5CF6; /* Purple */
-  --color-accent: #22D3EE; /* Cyan */
+  /* Brand (Black and White Theme) */
+  --color-primary: #000000;
+  --color-secondary: #333333;
+  --color-accent: #666666;
 
   /* Status */
   --color-success: #10B981;
@@ -16,24 +16,24 @@
 
 :root {
   /* Light theme */
-  --color-background: #F8FAFC;
-  --color-foreground: #0F172A;
-  --color-card: #FFFFFF;
-  --color-card-foreground: #0F172A;
-  --color-muted: #F1F5F9;
-  --color-muted-foreground: #64748B;
-  --color-border: #E5E7EB;
+  --color-background: #FFFFFF;
+  --color-foreground: #000000;
+  --color-card: #F9FAFB;
+  --color-card-foreground: #000000;
+  --color-muted: #E5E7EB;
+  --color-muted-foreground: #4B5563;
+  --color-border: #D1D5DB;
 }
 
 .dark {
   /* Dark AI dashboard theme */
-  --color-background: #0B0F19;
-  --color-foreground: #F9FAFB;
-  --color-card: #111827;
-  --color-card-foreground: #F9FAFB;
-  --color-muted: #0F172A;
+  --color-background: #000000;
+  --color-foreground: #FFFFFF;
+  --color-card: #0A0A0A;
+  --color-card-foreground: #FFFFFF;
+  --color-muted: #1F2937;
   --color-muted-foreground: #9CA3AF;
-  --color-border: #1F2937;
+  --color-border: #374151;
 }
 
 * { box-sizing: border-box; }
@@ -51,14 +51,11 @@ body {
 /* Theme scrollbar (WebKit) */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(31, 41, 55, 0.9); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.65); }
+::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(75, 85, 99, 0.8); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.8); }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.8); }
 
 /* Animations */
 @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -78,7 +75,11 @@ body {
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #6366F1, #8B5CF6, #22D3EE);
+  background: linear-gradient(135deg, #000000, #333333, #666666);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.dark .gradient-text {
+  background: linear-gradient(135deg, #FFFFFF, #CCCCCC, #999999);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 

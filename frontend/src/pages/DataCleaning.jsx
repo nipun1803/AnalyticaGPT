@@ -59,7 +59,7 @@ export default function DataCleaning({ onCleanSuccess }) {
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Data Preparation</h2>
           <p className="text-zinc-500 text-sm">Automated tools to refine, sanitize, and engineer your dataset</p>
         </div>
-        <Button variant="outline" onClick={handleEngineer} loading={engineering} className="bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20">
+        <Button variant="outline" onClick={handleEngineer} loading={engineering} className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800">
           <Sparkles className="w-4 h-4 mr-2" /> Auto Feature Engineering
         </Button>
       </div>
@@ -68,26 +68,26 @@ export default function DataCleaning({ onCleanSuccess }) {
         <Card className="lg:col-span-2 p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button onClick={() => toggle('drop_duplicates')}
-              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.drop_duplicates ? 'bg-orange-600/10 border-orange-500/50 text-orange-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
-              <div className={`p-2 rounded-lg ${options.drop_duplicates ? 'bg-orange-600' : 'bg-zinc-800'}`}><Trash2 className="w-5 h-5" /></div>
+              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.drop_duplicates ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
+              <div className={`p-2 rounded-lg ${options.drop_duplicates ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black' : 'bg-zinc-100 dark:bg-zinc-800'}`}><Trash2 className="w-5 h-5" /></div>
               <div><p className="font-semibold text-sm">Remove Duplicates</p><p className="text-xs opacity-60">Drop identical rows</p></div>
             </button>
 
             <button onClick={() => toggle('drop_null_rows')}
-              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.drop_null_rows ? 'bg-orange-600/10 border-orange-500/50 text-orange-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
-              <div className={`p-2 rounded-lg ${options.drop_null_rows ? 'bg-orange-600' : 'bg-zinc-800'}`}><Filter className="w-5 h-5" /></div>
+              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.drop_null_rows ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
+              <div className={`p-2 rounded-lg ${options.drop_null_rows ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black' : 'bg-zinc-100 dark:bg-zinc-800'}`}><Filter className="w-5 h-5" /></div>
               <div><p className="font-semibold text-sm">Drop Null Rows</p><p className="text-xs opacity-60">Remove rows with any missing data</p></div>
             </button>
 
             <button onClick={() => toggle('fill_numeric_nulls')}
-              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.fill_numeric_nulls ? 'bg-orange-600/10 border-orange-500/50 text-orange-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
-              <div className={`p-2 rounded-lg ${options.fill_numeric_nulls ? 'bg-orange-600' : 'bg-zinc-800'}`}><Eraser className="w-5 h-5" /></div>
+              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.fill_numeric_nulls ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
+              <div className={`p-2 rounded-lg ${options.fill_numeric_nulls ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black' : 'bg-zinc-100 dark:bg-zinc-800'}`}><Eraser className="w-5 h-5" /></div>
               <div><p className="font-semibold text-sm">Impute Nulls</p><p className="text-xs opacity-60">Fill missing numeric values</p></div>
             </button>
 
             <button onClick={() => toggle('handle_outliers')}
-              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.handle_outliers ? 'bg-orange-600/10 border-orange-500/50 text-orange-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
-              <div className={`p-2 rounded-lg ${options.handle_outliers ? 'bg-orange-600' : 'bg-zinc-800'}`}><Zap className="w-5 h-5" /></div>
+              className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${options.handle_outliers ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:border-zinc-700'}`}>
+              <div className={`p-2 rounded-lg ${options.handle_outliers ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black' : 'bg-zinc-100 dark:bg-zinc-800'}`}><Zap className="w-5 h-5" /></div>
               <div><p className="font-semibold text-sm">Outlier Handling</p><p className="text-xs opacity-60">Clip outliers using IQR method</p></div>
             </button>
           </div>
@@ -114,7 +114,7 @@ export default function DataCleaning({ onCleanSuccess }) {
 
         <Card className="p-6 bg-white dark:bg-zinc-900/30 border-dashed border-zinc-200 dark:border-zinc-800">
           <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-4 flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Action Report
+            <CheckCircle2 className="w-5 h-5 text-zinc-900 dark:text-zinc-100" /> Action Report
           </h3>
           {!report ? (
             <div className="h-48 flex items-center justify-center text-zinc-600 text-sm italic">
@@ -124,7 +124,7 @@ export default function DataCleaning({ onCleanSuccess }) {
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400 text-sm">Features Created</span>
-                <Badge variant="secondary" className="bg-amber-500/10 text-amber-400">{report.new_features?.length || 0}</Badge>
+                <Badge variant="secondary">{report.new_features?.length || 0}</Badge>
               </div>
               {report.descriptions?.length > 0 && (
                 <div className="space-y-2">
@@ -132,7 +132,7 @@ export default function DataCleaning({ onCleanSuccess }) {
                   <div className="space-y-1.5 max-h-40 overflow-y-auto pr-2">
                     {report.descriptions.map((desc, i) => (
                       <div key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex items-start gap-2 bg-white dark:bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800/50">
-                        <span className="text-emerald-500 mt-0.5">✓</span> {desc}
+                        <span className="text-zinc-900 dark:text-zinc-100 font-bold mt-0.5">✓</span> {desc}
                       </div>
                     ))}
                   </div>
@@ -145,7 +145,7 @@ export default function DataCleaning({ onCleanSuccess }) {
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {report.new_features.map((feat, i) => (
-                      <Badge key={i} variant="secondary" className="bg-amber-500/10 text-amber-400 text-xs">
+                      <Badge key={i} variant="secondary" className="text-xs">
                         <Sparkles className="w-3 h-3 mr-1" /> {feat}
                       </Badge>
                     ))}
@@ -157,7 +157,7 @@ export default function DataCleaning({ onCleanSuccess }) {
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400 text-sm">Rows Removed</span>
-                <Badge variant="secondary" className="bg-red-500/10 text-red-400">{report.rows_removed}</Badge>
+                <Badge variant="secondary">{report.rows_removed}</Badge>
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-zinc-500 uppercase">Actions Taken</p>
@@ -167,7 +167,7 @@ export default function DataCleaning({ onCleanSuccess }) {
                   <div className="space-y-1.5 max-h-60 overflow-y-auto pr-2">
                     {report.actions?.map((act, i) => (
                       <div key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex items-start gap-2">
-                        <span className="text-orange-500 mt-1">•</span> {act}
+                        <span className="text-zinc-900 dark:text-zinc-100 font-bold mt-1">•</span> {act}
                       </div>
                     ))}
                   </div>

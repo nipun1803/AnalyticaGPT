@@ -12,16 +12,18 @@
 import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, ComposedChart, Area,
+  PieChart, Pie, Cell, Legend, Line, ComposedChart, Area, Brush
 } from 'recharts';
 import {
   TrendingUp, Target, ShieldAlert, Play, Settings2, Clock,
-  GitBranch, CheckSquare, AlertCircle,
+  GitBranch, Network
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { toast } from 'sonner';
+import EmptyState from '../components/EmptyState';
+import ProgressLoader from '../components/ProgressLoader';
 import {
   getColumns, runPrediction, runClustering, runAnomalyDetection,
   runForecasting, runClassification,
@@ -46,7 +48,7 @@ const MetricCard = ({ label, value, color = 'text-[var(--color-foreground)]' }) 
   </Card>
 );
 
-export default function MLPanel() {
+export default function MLPanel({ datasetInfo }) {
   const [tab, setTab] = useState('regression');
   const [cols, setCols] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -108,6 +110,8 @@ export default function MLPanel() {
     { key: 'forecast', label: 'Forecasting', icon: Clock },
   ];
 
+  if (!datasetInfo) return <EmptyState icon={Network} title="No Data Loaded" description="Please upload or select a dataset to use the ML Engine." />;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -168,7 +172,8 @@ export default function MLPanel() {
               </Button>
             </CardContent>
           </Card>
-          {results.regression && <RegressionResults data={results.regression} />}
+          {loading && tab === 'regression' && <ProgressLoader text="Training Regression model..." />}
+          {results.regression && !loading && <RegressionResults data={results.regression} />}
         </div>
       )}
 
@@ -225,7 +230,8 @@ export default function MLPanel() {
               </Button>
             </CardContent>
           </Card>
-          {results.classification && <ClassificationResults data={results.classification} />}
+          {loading && tab === 'classification' && <ProgressLoader text="Training Classification model..." />}
+          {results.classification && !loading && <ClassificationResults data={results.classification} />}
         </div>
       )}
 
@@ -257,7 +263,8 @@ export default function MLPanel() {
               </Button>
             </CardContent>
           </Card>
-          {results.clustering && <ClusterResults data={results.clustering} />}
+          {loading && tab === 'clustering' && <ProgressLoader text="Running Clustering algorithm..." />}
+          {results.clustering && !loading && <ClusterResults data={results.clustering} />}
         </div>
       )}
 
@@ -289,7 +296,8 @@ export default function MLPanel() {
               </Button>
             </CardContent>
           </Card>
-          {results.anomaly && <AnomalyResults data={results.anomaly} />}
+          {loading && tab === 'anomaly' && <ProgressLoader text="Detecting Anomalies..." />}
+          {results.anomaly && !loading && <AnomalyResults data={results.anomaly} />}
         </div>
       )}
 
@@ -344,7 +352,8 @@ export default function MLPanel() {
               </Button>
             </CardContent>
           </Card>
-          {results.forecast && <ForecastResults data={results.forecast} periods={forecastPeriods} />}
+          {loading && tab === 'forecast' && <ProgressLoader text="Calculating Forecast..." />}
+          {results.forecast && !loading && <ForecastResults data={results.forecast} periods={forecastPeriods} />}
         </div>
       )}
     </div>
@@ -466,14 +475,14 @@ function ClassificationResults({ data }) {
         {data.per_class_metrics && Object.keys(data.per_class_metrics).length > 0 && (
           <Card>
             <CardHeader><CardTitle className="text-sm">Per-Class Results</CardTitle></CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
+            <CardContent className="overflow-x-auto max-h-[400px] overflow-y-auto p-0">
+              <table className="w-full text-xs relative">
+                <thead className="sticky top-0 z-10 bg-white dark:bg-black shadow-sm">
                   <tr>
-                    <th className="text-left px-2 py-2 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px]">Class</th>
-                    <th className="text-left px-2 py-2 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px]">Support</th>
-                    <th className="text-left px-2 py-2 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px]">Correct</th>
-                    <th className="text-left px-2 py-2 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px]">Acc</th>
+                    <th className="text-left px-4 py-3 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px] bg-white dark:bg-black">Class</th>
+                    <th className="text-left px-4 py-3 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px] bg-white dark:bg-black">Support</th>
+                    <th className="text-left px-4 py-3 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px] bg-white dark:bg-black">Correct</th>
+                    <th className="text-left px-4 py-3 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px] bg-white dark:bg-black">Acc</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -502,13 +511,13 @@ function ClassificationResults({ data }) {
           <CardHeader>
             <CardTitle className="text-sm">Confusion Matrix</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="text-xs mx-auto">
-              <thead>
+          <CardContent className="overflow-x-auto max-h-[400px] overflow-y-auto p-0">
+            <table className="text-xs mx-auto relative w-full">
+              <thead className="sticky top-0 z-10 bg-white dark:bg-black shadow-sm">
                 <tr>
-                  <th className="px-3 py-2 text-zinc-500 text-[10px]">Actual ↓ / Pred →</th>
+                  <th className="px-4 py-3 text-zinc-500 text-[10px] border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black text-left">Actual ↓ / Pred →</th>
                   {classes.map((c) => (
-                    <th key={c} className="px-3 py-2 text-violet-400 text-[10px] font-semibold">{c}</th>
+                    <th key={c} className="px-4 py-3 text-violet-400 text-[10px] font-semibold border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">{c}</th>
                   ))}
                 </tr>
               </thead>
@@ -586,13 +595,13 @@ function ClusterResults({ data }) {
         {data.cluster_profiles && Object.keys(data.cluster_profiles).length > 0 && (
           <Card>
             <CardHeader><CardTitle className="text-sm">Cluster Profiles (Feature Means)</CardTitle></CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
+            <CardContent className="overflow-x-auto max-h-[400px] overflow-y-auto p-0">
+              <table className="w-full text-xs relative">
+                <thead className="sticky top-0 z-10 bg-white dark:bg-black shadow-sm">
                   <tr>
-                    <th className="text-left px-2 py-1.5 text-zinc-500 uppercase text-[10px] border-b border-zinc-200 dark:border-zinc-800">Cluster</th>
+                    <th className="text-left px-4 py-3 text-zinc-500 uppercase text-[10px] border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">Cluster</th>
                     {data.feature_columns?.slice(0, 4).map((f) => (
-                      <th key={f} className="text-left px-2 py-1.5 text-zinc-500 uppercase text-[10px] border-b border-zinc-200 dark:border-zinc-800 truncate max-w-[80px]">{f}</th>
+                      <th key={f} className="text-left px-4 py-3 text-zinc-500 uppercase text-[10px] border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black truncate max-w-[80px]">{f}</th>
                     ))}
                   </tr>
                 </thead>
@@ -635,12 +644,12 @@ function AnomalyResults({ data }) {
       {data.anomaly_samples?.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-sm">Anomaly Samples</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
+          <CardContent className="overflow-x-auto max-h-[400px] overflow-y-auto p-0">
+            <table className="w-full text-xs relative">
+              <thead className="sticky top-0 z-10 bg-white dark:bg-black shadow-sm">
                 <tr>
                   {Object.keys(data.anomaly_samples[0]).map((c) => (
-                    <th key={c} className="text-left px-2 py-2 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 text-[10px]">{c}</th>
+                    <th key={c} className="text-left px-4 py-3 text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black text-[10px]">{c}</th>
                   ))}
                 </tr>
               </thead>
@@ -793,6 +802,7 @@ function ForecastResults({ data, periods }) {
                   connectNulls={false}
                   name="Forecast"
                 />
+                <Brush dataKey="date" height={30} stroke="#444" fill="transparent" tickFormatter={(val) => val?.slice(5)} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

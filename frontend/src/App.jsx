@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from './context/useAuth';
 import AuthPage from './pages/AuthPage';
+import LandingPage from './pages/LandingPage';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import FileUpload from './components/FileUpload';
@@ -107,7 +108,7 @@ export default function App() {
     return (
       <>
         <Toaster theme="dark" position="top-right" richColors closeButton />
-        <AuthPage />
+        <LandingPage />
       </>
     );
   }
