@@ -811,11 +811,13 @@ async def generate_report(role: str = Query(default="analyst"), user: User = Dep
 
     stats = get_summary_statistics(state["df_raw"])
     insights = state["generator"].generate_insights(stats, role=role)
+    chart_insights = state["generator"].generate_chart_insights(stats, role=role)
 
     filename = state["report_generator"].generate_report(
         dataset_name=state["dataset_name"],
         summary_stats=stats,
         insights=insights,
+        chart_insights=chart_insights,
         ml_results=state["ml_results"].get("regression"),
         anomaly_results=state["ml_results"].get("anomaly"),
     )

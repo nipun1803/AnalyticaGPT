@@ -29,16 +29,17 @@ from loguru import logger
 
 
 # Color palette
-PRIMARY = "#6C5CE7"
-SECONDARY = "#00CEC9"
-ACCENT = "#FD79A8"
-DARK = "#2D3436"
-MUTED = "#636E72"
-LIGHT_BG = "#F5F6FA"
-BORDER = "#DFE6E9"
-SUCCESS = "#00B894"
-WARNING = "#FDCB6E"
-DANGER = "#D63031"
+# Color palette
+PRIMARY = "#18181b"  # zinc-900
+SECONDARY = "#52525b" # zinc-600
+ACCENT = "#a1a1aa" # zinc-400
+DARK = "#09090b" # zinc-950
+MUTED = "#71717a" # zinc-500
+LIGHT_BG = "#f4f4f5" # zinc-100
+BORDER = "#e4e4e7" # zinc-200
+SUCCESS = "#18181b" 
+WARNING = "#52525b"
+DANGER = "#09090b"
 
 
 class ReportGenerator:
@@ -92,6 +93,7 @@ class ReportGenerator:
         dataset_name: str,
         summary_stats: Dict[str, Any],
         insights: str,
+        chart_insights: Optional[Dict[str, str]] = None,
         ml_results: Optional[Dict] = None,
         anomaly_results: Optional[Dict] = None,
     ) -> str:
@@ -263,6 +265,9 @@ class ReportGenerator:
             chart_path = self._generate_boxplot_chart(num_summary)
             if chart_path:
                 elements.append(RLImage(chart_path, width=460, height=260))
+                elements.append(Spacer(1, 8))
+                if chart_insights and chart_insights.get("distribution"):
+                    elements.append(Paragraph("💡 " + chart_insights["distribution"], self.styles["BodyCustom"]))
                 elements.append(Spacer(1, 15))
 
             # Skewness chart
@@ -275,6 +280,9 @@ class ReportGenerator:
                     self.styles["BodyCustom"],
                 ))
                 elements.append(RLImage(skew_path, width=460, height=220))
+                elements.append(Spacer(1, 8))
+                if chart_insights and chart_insights.get("skewness"):
+                    elements.append(Paragraph("💡 " + chart_insights["skewness"], self.styles["BodyCustom"]))
                 elements.append(Spacer(1, 15))
 
         # ── 6. CATEGORICAL DISTRIBUTION ───────────────────────
@@ -283,6 +291,9 @@ class ReportGenerator:
             if cat_chart:
                 elements.append(Paragraph("🏷️ Top Categorical Values", self.styles["SubSection"]))
                 elements.append(RLImage(cat_chart, width=460, height=240))
+                elements.append(Spacer(1, 8))
+                if chart_insights and chart_insights.get("categorical"):
+                    elements.append(Paragraph("💡 " + chart_insights["categorical"], self.styles["BodyCustom"]))
                 elements.append(Spacer(1, 15))
 
         # ── 7. AI INSIGHTS ────────────────────────────────────

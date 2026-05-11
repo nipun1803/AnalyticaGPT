@@ -169,6 +169,39 @@ class LLMGenerator:
             logger.error(f"Insight generation failed: {e}")
             return f"Could not generate insights: {str(e)}"
 
+    def generate_chart_insights(
+        self,
+        summary_stats: Dict,
+        role: str = "analyst",
+    ) -> Dict[str, str]:
+        """Generate specific insights for charts to interleave in the PDF report."""
+        system_prompt = ROLE_PROMPTS.get(role, ROLE_PROMPTS["analyst"])
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Analyze these dataset statistics and provide short (2-3 sentence) insights for the following charts:\n"
+                    f"1. 'distribution': Insights on numeric distribution (means, std, min/max).\n"
+                    f"2. 'skewness': Insights on skewness and kurtosis.\n"
+                    f"3. 'categorical': Insights on top categorical values.\n\n"
+                    f"Return ONLY a valid JSON object with keys 'distribution', 'skewness', and 'categorical'.\n\n"
+                    f"Stats:\n{json.dumps(summary_stats, default=str)[:3000]}"
+                ),
+            },
+        ]
+        try:
+            response = self.client.chat.completions.create(
+                model=settings.GROQ_MODEL,
+                messages=messages,
+                temperature=0.3,
+                response_format={"type": "json_object"},
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            logger.error(f"Chart insight generation failed: {e}")
+            return {"distribution": "", "skewness": "", "categorical": ""}
+
     @staticmethod
     def _format_context(docs: List[Dict]) -> str:
         """Format retrieved documents into a context string."""
