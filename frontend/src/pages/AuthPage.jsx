@@ -58,14 +58,14 @@ export default function AuthPage() {
           <p className="text-zinc-500 text-sm mt-1.5 font-medium tracking-wide uppercase">Enterprise Data Engine</p>
         </div>
 
-        <Card className="border-zinc-200 dark:border-zinc-800 shadow-xl shadow-black/5 dark:shadow-none bg-white dark:bg-black">
+        <Card className="border-zinc-200 dark:border-zinc-800 shadow-xl shadow-black/5 dark:shadow-none bg-white dark:bg-zinc-950/80 backdrop-blur-md">
           <CardContent className="p-8">
             {/* Tab toggle */}
-            <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-xl p-1 mb-6 border border-zinc-200 dark:border-zinc-800">
+            <div className="flex bg-zinc-100 dark:bg-zinc-900/50 rounded-xl p-1 mb-6 border border-zinc-200 dark:border-zinc-800">
               {['login', 'register'].map((m) => (
                 <button key={m} onClick={() => { setMode(m); setError(''); }}
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 capitalize ${
-                    mode === m ? 'bg-white dark:bg-black text-black dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    mode === m ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
                   }`}>
                   {m === 'login' ? 'Sign In' : 'Create Account'}
                 </button>

@@ -95,7 +95,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.5, ease: "easeOut" }}
-            className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[1000px] max-h-[1000px] -z-10 opacity-40 lg:opacity-60 pointer-events-none"
+            className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[600px] lg:h-[800px] max-w-[1200px] -z-10 opacity-70 lg:opacity-100 pointer-events-none"
           >
             <Canvas camera={{ position: [0, 0, 4.5] }}>
               <ambientLight intensity={0.5} />
@@ -106,7 +106,7 @@ export default function LandingPage() {
 
           <motion.div
             initial="hidden" animate="visible" variants={stagger}
-            className="max-w-5xl mx-auto space-y-8 backdrop-blur-sm bg-black/10 p-8 rounded-3xl"
+            className="max-w-5xl mx-auto space-y-8 z-10 p-8"
           >
             <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-sm font-medium mb-4">
               <Sparkles className="w-4 h-4" />

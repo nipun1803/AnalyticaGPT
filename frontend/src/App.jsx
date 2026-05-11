@@ -3,7 +3,8 @@
  * Auth-gated, sidebar navigation, Sonner toasts.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from './context/useAuth';
 import AuthPage from './pages/AuthPage';
@@ -22,12 +23,14 @@ import EDAPanel from './pages/EDAPanel';
 import Pins from './pages/Pins';
 import PublicPin from './pages/PublicPin';
 import { Loader2, Menu, Moon, Sun } from 'lucide-react';
-import { useEffect } from 'react';
 import { getUploadStatus } from './services/api';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
-  const [activePage, setActivePage] = useState('upload');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activePage = location.pathname.substring(1) || 'upload';
+
   const [datasetInfo, setDatasetInfo] = useState(null);
   const [summaryData, setSummaryData] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -53,13 +56,14 @@ export default function App() {
         .then((status) => {
           if (status) {
             setDatasetInfo(status);
-            // Optional: if status exists, jump to dashboard
-            setActivePage('dashboard');
+            if (location.pathname === '/' || location.pathname === '/upload') {
+              navigate('/dashboard', { replace: true });
+            }
           }
         })
         .catch(() => {});
     }
-  }, [user, datasetInfo]);
+  }, [user, datasetInfo, navigate, location.pathname]);
 
   // Minimal onboarding tour (first login only)
   useEffect(() => {
@@ -75,13 +79,13 @@ export default function App() {
   const handleUploadSuccess = (info) => {
     setDatasetInfo(info);
     setSummaryData(null);
-    setActivePage('dashboard');
+    navigate('/dashboard');
   };
 
   const handleDatasetActivated = (info) => {
     setDatasetInfo(info);
     setSummaryData(null);
-    if (info) setActivePage('dashboard');
+    if (info) navigate('/dashboard');
   };
 
   // Auth loading spinner
@@ -98,7 +102,7 @@ export default function App() {
     return (
       <>
         <Toaster theme="dark" position="top-right" richColors closeButton />
-        <PublicPin pinId={pinId} onBack={() => { window.history.pushState({}, '', '/'); window.location.reload(); }} />
+        <PublicPin pinId={pinId} onBack={() => navigate('/')} />
       </>
     );
   }
@@ -113,29 +117,12 @@ export default function App() {
     );
   }
 
-  const renderPage = () => {
-    switch (activePage) {
-      case 'dashboard': return <Dashboard datasetInfo={datasetInfo} summaryData={summaryData} setSummaryData={setSummaryData} />;
-      case 'upload': return <FileUpload onSuccess={handleUploadSuccess} />;
-      case 'preview': return <DataPreview datasetInfo={datasetInfo} />;
-      case 'charts': return <Charts summaryData={summaryData} setSummaryData={setSummaryData} />;
-      case 'ml': return <MLPanel datasetInfo={datasetInfo} />;
-      case 'insights': return <InsightsPanel />;
-      case 'cleaning': return <DataCleaning onCleanSuccess={() => setDatasetInfo(prev => ({ ...prev }))} />;
-      case 'eda': return <EDAPanel />;
-      case 'chat': return <ChatBox />;
-      case 'report': return <ReportPanel />;
-      case 'pins': return <Pins />;
-      default: return <FileUpload onSuccess={handleUploadSuccess} />;
-    }
-  };
-
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--color-background)]">
       <Toaster theme="dark" position="top-right" richColors closeButton />
       <Sidebar
         activePage={activePage}
-        onNavigate={(page) => { setActivePage(page); setMobileMenuOpen(false); }}
+        onNavigate={(page) => { navigate(`/${page}`); setMobileMenuOpen(false); }}
         datasetLoaded={!!datasetInfo}
         collapsed={collapsed}
         setCollapsed={setCollapsed}
@@ -163,7 +150,21 @@ export default function App() {
         
         <div className="flex-1 overflow-y-auto p-5 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            {renderPage()}
+            <Routes>
+              <Route path="/" element={<Navigate to="/upload" replace />} />
+              <Route path="/dashboard" element={<Dashboard datasetInfo={datasetInfo} summaryData={summaryData} setSummaryData={setSummaryData} />} />
+              <Route path="/upload" element={<FileUpload onSuccess={handleUploadSuccess} />} />
+              <Route path="/preview" element={<DataPreview datasetInfo={datasetInfo} />} />
+              <Route path="/charts" element={<Charts summaryData={summaryData} setSummaryData={setSummaryData} />} />
+              <Route path="/ml" element={<MLPanel datasetInfo={datasetInfo} />} />
+              <Route path="/insights" element={<InsightsPanel />} />
+              <Route path="/cleaning" element={<DataCleaning onCleanSuccess={() => setDatasetInfo(prev => ({ ...prev }))} />} />
+              <Route path="/eda" element={<EDAPanel />} />
+              <Route path="/chat" element={<ChatBox />} />
+              <Route path="/report" element={<ReportPanel />} />
+              <Route path="/pins" element={<Pins />} />
+              <Route path="*" element={<Navigate to="/upload" replace />} />
+            </Routes>
           </div>
         </div>
       </main>

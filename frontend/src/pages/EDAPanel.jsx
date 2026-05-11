@@ -196,7 +196,7 @@ export default function EDAPanel() {
                 </div>
 
                 <div className="h-52 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <BarChart data={dist.counts.map((c, i) => ({
                       count: c,
                       bin: dist.bins[i]?.toFixed?.(2) ?? String(dist.bins[i]),
@@ -253,7 +253,7 @@ export default function EDAPanel() {
                 </div>
 
                 <div className="h-52 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <BarChart
                       layout="vertical"
                       data={dist.labels.map((l, i) => ({ label: String(l), value: dist.values[i] }))}

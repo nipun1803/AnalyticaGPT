@@ -4,9 +4,9 @@
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   /* Brand (Black and White Theme) */
-  --color-primary: #000000;
-  --color-secondary: #333333;
-  --color-accent: #666666;
+  --color-primary: var(--color-primary-base);
+  --color-secondary: var(--color-secondary-base);
+  --color-accent: var(--color-accent-base);
 
   /* Status */
   --color-success: #10B981;
@@ -16,6 +16,10 @@
 
 :root {
   /* Light theme */
+  --color-primary-base: #000000;
+  --color-secondary-base: #333333;
+  --color-accent-base: #666666;
+
   --color-background: #FFFFFF;
   --color-foreground: #000000;
   --color-card: #F9FAFB;
@@ -26,7 +30,11 @@
 }
 
 .dark {
-  /* Dark AI dashboard theme */
+  /* Dark theme */
+  --color-primary-base: #FFFFFF;
+  --color-secondary-base: #CCCCCC;
+  --color-accent-base: #999999;
+
   --color-background: #000000;
   --color-foreground: #FFFFFF;
   --color-card: #0A0A0A;
