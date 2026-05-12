@@ -72,6 +72,14 @@ from services.report import ReportGenerator
 
 router = APIRouter()
 
+# ── Global Shared Services (Stateless/Shared Clients) ──────────
+# These are safe to share across all users.
+_embedding_service = EmbeddingService()
+_retriever = VectorRetriever()
+_generator = LLMGenerator()
+
+# ── Per-user state (Stateful services) ────────────────────────
+
 # ── Initialise database ───────────────────────────────────────
 # Removed module-level init_db() to prevent blocking on import. 
 # init_db() is called inside lifespan instead.
@@ -89,9 +97,6 @@ def get_user_state(user_id: int):
             "dataset_id": None,
             "preprocessor": DataPreprocessor(),
             "ml_engine": MLEngine(),
-            "embedding_service": EmbeddingService(),
-            "retriever": VectorRetriever(),
-            "generator": LLMGenerator(),
             "report_generator": ReportGenerator(),
             "chat_history": [],
             "ml_results": {},
@@ -144,15 +149,19 @@ def _activate_dataset_from_record(state: dict, dataset: DatasetFile):
         logger.error(f"Preprocessing failed during activate: {e}")
         state["df_processed"] = df.copy()
 
-    # (Re)index for RAG so chat works after switching
+    # RAG: Indexing is HEAVY. Only do it if the collection is empty.
     try:
-        chunks = state["embedding_service"].create_chunks(df, dataset.filename)
-        texts = [c["text"] for c in chunks]
-        embeddings = state["embedding_service"].embed_texts(texts, cache_key=dataset.dataset_id)
-        state["retriever"].index_chunks(chunks, embeddings, dataset.dataset_id)
-        logger.info(f"Activated + indexed dataset {dataset.dataset_id} ({len(chunks)} chunks)")
+        count = _retriever.collection.count()
+        if count == 0:
+            logger.info(f"Indexing dataset {dataset.dataset_id} for RAG...")
+            chunks = _embedding_service.create_chunks(df, dataset.filename)
+            texts = [c["text"] for c in chunks]
+            embeddings = _embedding_service.embed_texts(texts, cache_key=dataset.dataset_id)
+            _retriever.index_chunks(chunks, embeddings, dataset.dataset_id)
+        else:
+            logger.info(f"Vector store already contains {count} items. Skipping auto-index.")
     except Exception as e:
-        logger.error(f"RAG indexing failed during activate: {e}")
+        logger.error(f"RAG indexing check failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -211,10 +220,10 @@ async def upload_dataset(
 
     # RAG: chunk → embed → index
     try:
-        chunks = state["embedding_service"].create_chunks(df, file.filename)
+        chunks = _embedding_service.create_chunks(df, file.filename)
         texts = [c["text"] for c in chunks]
-        embeddings = state["embedding_service"].embed_texts(texts, cache_key=dataset_id)
-        state["retriever"].index_chunks(chunks, embeddings, dataset_id)
+        embeddings = _embedding_service.embed_texts(texts, cache_key=dataset_id)
+        _retriever.index_chunks(chunks, embeddings, dataset_id)
         logger.info(f"Indexed {len(chunks)} chunks into vector DB")
     except Exception as e:
         logger.error(f"RAG indexing failed: {e}")
@@ -415,25 +424,25 @@ async def query_dataset(req: QueryRequest, user: User = Depends(get_current_user
 
     try:
         # Embed the query
-        query_embedding = state["embedding_service"].embed_query(req.question)
+        query_embedding = _embedding_service.embed_query(req.question)
 
         # Retrieve context
         if req.use_hybrid:
-            docs = state["retriever"].hybrid_search(
+            docs = _retriever.hybrid_search(
                 query=req.question,
                 query_embedding=query_embedding,
                 top_k=req.top_k,
                 dataset_id=state["dataset_id"],
             )
         else:
-            docs = state["retriever"].semantic_search(
+            docs = _retriever.semantic_search(
                 query_embedding=query_embedding,
                 top_k=req.top_k,
                 dataset_id=state["dataset_id"],
             )
 
         # Generate answer
-        answer = state["generator"].generate(
+        answer = _generator.generate(
             query=req.question,
             context_docs=docs,
             role=req.role.value,
@@ -481,17 +490,17 @@ async def query_stream(req: QueryRequest, user: User = Depends(get_current_user)
     """Stream RAG response token-by-token via SSE."""
     state = _require_dataset(user.id)
 
-    query_embedding = state["embedding_service"].embed_query(req.question)
+    query_embedding = _embedding_service.embed_query(req.question)
 
     if req.use_hybrid:
-        docs = state["retriever"].hybrid_search(
+        docs = _retriever.hybrid_search(
             query=req.question,
             query_embedding=query_embedding,
             top_k=req.top_k,
             dataset_id=state["dataset_id"],
         )
     else:
-        docs = state["retriever"].semantic_search(
+        docs = _retriever.semantic_search(
             query_embedding=query_embedding,
             top_k=req.top_k,
             dataset_id=state["dataset_id"],
@@ -499,7 +508,7 @@ async def query_stream(req: QueryRequest, user: User = Depends(get_current_user)
 
     async def event_generator():
         full_answer = ""
-        async for token in state["generator"].generate_stream(
+        async for token in _generator.generate_stream(
             query=req.question,
             context_docs=docs,
             role=req.role.value,
@@ -563,7 +572,7 @@ async def get_ai_insights(role: str = Query(default="analyst"), user: User = Dep
     """Generate AI-powered insights from the dataset summary."""
     state = _require_dataset(user.id)
     stats = get_summary_statistics(state["df_raw"])
-    insights = state["generator"].generate_insights(stats, role=role)
+    insights = _generator.generate_insights(stats, role=role)
     return {"insights": insights, "role": role}
 
 @router.get("/data/auto-eda")
@@ -873,8 +882,8 @@ async def generate_report(role: str = Query(default="analyst"), user: User = Dep
     state = _require_dataset(user.id)
 
     stats = get_summary_statistics(state["df_raw"])
-    insights = state["generator"].generate_insights(stats, role=role)
-    chart_insights = state["generator"].generate_chart_insights(stats, role=role)
+    insights = _generator.generate_insights(stats, role=role)
+    chart_insights = _generator.generate_chart_insights(stats, role=role)
 
     filename = state["report_generator"].generate_report(
         dataset_name=state["dataset_name"],

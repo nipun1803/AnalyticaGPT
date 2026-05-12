@@ -25,7 +25,7 @@ class EmbeddingService:
         """Lazy-load the embedding model."""
         if self._model is None:
             logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL}")
-            self._model = SentenceTransformer(settings.EMBEDDING_MODEL)
+            self._model = SentenceTransformer(settings.EMBEDDING_MODEL, device="cpu")
         return self._model
 
     def create_chunks(self, df: pd.DataFrame, dataset_name: str = "dataset") -> List[Dict[str, Any]]:
