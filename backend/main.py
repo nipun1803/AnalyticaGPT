@@ -47,9 +47,18 @@ async def lifespan(app: FastAPI):
     os.makedirs("data/chroma_db", exist_ok=True)
     init_db()
     
-    # Initialize Redis Cache
-    redis = aioredis.from_url(settings.REDIS_URL, encoding="utf8", decode_responses=True)
-    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+    # Initialize Cache (Redis with In-Memory fallback)
+    try:
+        if settings.REDIS_URL and settings.REDIS_URL.startswith("redis"):
+            redis = aioredis.from_url(settings.REDIS_URL, encoding="utf8", decode_responses=True)
+            FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+            logger.info("Cache initialized with Redis")
+        else:
+            raise ValueError("No Redis URL")
+    except Exception as e:
+        from fastapi_cache.backends.inmemory import InMemoryBackend
+        FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
+        logger.warning(f"Redis unavailable, using In-Memory cache: {e}")
     
     logger.info("InsightForge AI Backend Started")
     yield
