@@ -8,9 +8,16 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, B
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import settings
 
+# ── Database Engine ───────────────────────────────────────────
+is_sqlite = settings.sqlalchemy_database_url.startswith("sqlite")
+engine_args = {}
+
+if is_sqlite:
+    engine_args["connect_args"] = {"check_same_thread": False}
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False},  # SQLite specific
+    settings.sqlalchemy_database_url,
+    **engine_args,
     echo=False,
 )
 

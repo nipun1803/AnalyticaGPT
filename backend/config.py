@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     JWT_EXPIRE_HOURS: int = 72
     DATABASE_URL: str = "sqlite:///./data/insightforge.db"
 
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        """Handle Render/Heroku postgres:// vs postgresql:// issue."""
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+
     # ── Background Jobs ────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
 
