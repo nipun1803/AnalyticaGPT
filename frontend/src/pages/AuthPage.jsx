@@ -51,21 +51,21 @@ export default function AuthPage() {
       >
         {/* Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-black dark:bg-white mb-4 shadow-lg shadow-black/10 dark:shadow-white/10">
-            <Zap className="w-7 h-7 text-white dark:text-black" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--color-foreground)] mb-4 shadow-lg">
+            <Zap className="w-7 h-7 text-[var(--color-background)]" />
           </div>
-          <h1 className="text-3xl font-bold text-black dark:text-white tracking-tight">InsightForge AI</h1>
-          <p className="text-zinc-500 text-sm mt-1.5 font-medium tracking-wide uppercase">Enterprise Data Engine</p>
+          <h1 className="text-3xl font-bold text-[var(--color-foreground)] tracking-tight">InsightForge AI</h1>
+          <p className="text-[var(--color-muted-foreground)] text-sm mt-1.5 font-medium tracking-wide uppercase">Enterprise Data Engine</p>
         </div>
 
-        <Card className="border-zinc-200 dark:border-zinc-800 shadow-xl shadow-black/5 dark:shadow-none bg-white dark:bg-zinc-950/80 backdrop-blur-md">
+        <Card className="border-[var(--color-border)] shadow-xl shadow-black/5 bg-[var(--color-card)] backdrop-blur-md">
           <CardContent className="p-8">
             {/* Tab toggle */}
-            <div className="flex bg-zinc-100 dark:bg-zinc-900/50 rounded-xl p-1 mb-6 border border-zinc-200 dark:border-zinc-800">
+            <div className="flex bg-[var(--color-muted)] rounded-xl p-1 mb-6 border border-[var(--color-border)]">
               {['login', 'register'].map((m) => (
                 <button key={m} onClick={() => { setMode(m); setError(''); }}
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 capitalize ${
-                    mode === m ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    mode === m ? 'bg-[var(--color-background)] text-[var(--color-foreground)] shadow-sm border border-[var(--color-border)]' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
                   }`}>
                   {m === 'login' ? 'Sign In' : 'Create Account'}
                 </button>
@@ -76,9 +76,9 @@ export default function AuthPage() {
               {mode === 'register' && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Full Name</label>
+                    <label className="text-xs text-[var(--color-muted-foreground)] font-medium">Full Name</label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                       <Input 
                         aria-label="Full Name"
                         placeholder="John Doe" 
@@ -89,9 +89,9 @@ export default function AuthPage() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Username</label>
+                    <label className="text-xs text-[var(--color-muted-foreground)] font-medium">Username</label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                       <Input 
                         aria-label="Username"
                         placeholder="johndoe" 
@@ -106,9 +106,9 @@ export default function AuthPage() {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Email</label>
+                <label className="text-xs text-[var(--color-muted-foreground)] font-medium">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                   <Input 
                     aria-label="Email Address"
                     type="email" 
@@ -122,13 +122,13 @@ export default function AuthPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Password</label>
+                <label className="text-xs text-[var(--color-muted-foreground)] font-medium">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                   <Input type={showPw ? 'text' : 'password'} placeholder="••••••••" value={password}
                     onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10" required />
                   <button type="button" onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-300 transition-colors">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors">
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -147,14 +147,14 @@ export default function AuthPage() {
             </form>
 
             {/* Features */}
-            <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-              <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mb-3 font-semibold uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />
+            <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+              <div className="flex items-center gap-2 text-[var(--color-muted-foreground)] text-xs mb-3 font-semibold uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-[var(--color-foreground)]" />
                 <span>Enterprise Stack</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {['Groq LLM', 'ChromaDB', 'Scikit-learn', 'RAG Pipeline'].map((t) => (
-                  <span key={t} className="px-2.5 py-1 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{t}</span>
+                  <span key={t} className="px-2.5 py-1 rounded-md bg-[var(--color-muted)] border border-[var(--color-border)] text-[10px] text-[var(--color-muted-foreground)] font-medium">{t}</span>
                 ))}
               </div>
             </div>
