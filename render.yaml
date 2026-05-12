@@ -3,7 +3,9 @@ services:
     name: insightforge-backend
     env: python
     plan: free
-    buildCommand: "python -m pip install --upgrade pip && pip install -r backend/requirements.txt --only-binary :all:"
+    buildCommand: |
+      python -m pip install --upgrade pip setuptools wheel
+      pip install -r backend/requirements.txt --only-binary :all:
     startCommand: "cd backend && gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT"
     envVars:
       - key: PYTHON_VERSION

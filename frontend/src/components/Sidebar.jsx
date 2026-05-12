@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { key: 'pins', label: 'Pins', icon: LinkIcon },
 ];
 
-export default function Sidebar({ activePage, onNavigate, datasetLoaded, collapsed, setCollapsed, mobileMenuOpen, setMobileMenuOpen, theme, toggleTheme, onDatasetActivated }) {
+export default function Sidebar({ onNavigate, datasetLoaded, collapsed, setCollapsed, mobileMenuOpen, setMobileMenuOpen, theme, toggleTheme, onDatasetActivated }) {
   const { user, logout } = useAuth();
 
   return (
@@ -61,7 +61,6 @@ export default function Sidebar({ activePage, onNavigate, datasetLoaded, collaps
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
-          const active = activePage === key;
           const disabled = key !== 'upload' && !datasetLoaded;
 
           return (

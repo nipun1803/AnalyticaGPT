@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useRef, useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, MeshDistortMaterial } from '@react-three/drei';
-import { ArrowRight, BarChart2, BrainCircuit, ShieldCheck, Database, Zap, LineChart, FileText, CheckCircle2, Sparkles } from 'lucide-react';
+import { ArrowRight, BarChart2, BrainCircuit, Database, Zap, LineChart, FileText, CheckCircle2, Sparkles } from 'lucide-react';
 import AuthPage from './AuthPage';
 
 function AnimatedSphere() {

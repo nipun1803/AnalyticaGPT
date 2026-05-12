@@ -49,7 +49,7 @@ export default function Charts({ summaryData, setSummaryData }) {
         try {
           const data = await getSummary();
           if (mounted) setSummaryData(data);
-        } catch (error) {
+        } catch {
           if (mounted) toast.error('Failed to load summary');
         } finally {
           if (mounted) setLoading(false);
@@ -232,7 +232,7 @@ export default function Charts({ summaryData, setSummaryData }) {
                       <Pie data={catPieData} cx="50%" cy="50%" outerRadius={100} innerRadius={40}
                         paddingAngle={3} dataKey="value"
                         label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}>
-                        {catPieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} onClick={(e) => handleChartClick(catPieData[i], 'categorical distribution')} cursor="pointer" />)}
+                        {catPieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} onClick={() => handleChartClick(catPieData[i], 'categorical distribution')} cursor="pointer" />)}
                       </Pie>
                       <Tooltip {...TT} />
                       <Legend />

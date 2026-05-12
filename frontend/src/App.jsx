@@ -8,7 +8,6 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from './context/useAuth';
-import AuthPage from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';

@@ -14,7 +14,6 @@ export default function Pins() {
   const baseUrl = useMemo(() => window.location.origin, []);
 
   useEffect(() => {
-    setLoading(true);
     const fetcher = mode === "my" ? listPins() : listGalleryPins();
     fetcher
       .then((rows) => setPins(rows || []))
@@ -40,10 +39,10 @@ export default function Pins() {
           <p className="text-[var(--color-muted-foreground)] text-sm mt-0.5">Share insights and charts with a public link</p>
         </div>
         <div className="flex bg-[var(--color-card)] p-1 rounded-lg border border-[var(--color-border)]">
-            <Button variant={mode === 'my' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('my')} className="text-xs">
+            <Button variant={mode === 'my' ? 'secondary' : 'ghost'} size="sm" onClick={() => { setMode('my'); setLoading(true); }} className="text-xs">
                 <UserIcon className="w-3.5 h-3.5 mr-1" /> My Pins
             </Button>
-            <Button variant={mode === 'gallery' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('gallery')} className="text-xs">
+            <Button variant={mode === 'gallery' ? 'secondary' : 'ghost'} size="sm" onClick={() => { setMode('gallery'); setLoading(true); }} className="text-xs">
                 <Globe className="w-3.5 h-3.5 mr-1" /> Public Gallery
             </Button>
         </div>

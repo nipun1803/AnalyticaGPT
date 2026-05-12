@@ -110,9 +110,9 @@ docker-compose up --build
 #### Backend Setup
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 # Configure .env
 cp .env.example .env

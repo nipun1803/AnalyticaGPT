@@ -9,6 +9,16 @@ from loguru import logger
 import sys
 import os
 
+# ── distutils shim for Python 3.12+ ───────────────────────────
+try:
+    import distutils
+except ImportError:
+    try:
+        import setuptools.distutils as distutils
+        sys.modules['distutils'] = distutils
+    except ImportError:
+        pass
+
 from config import settings
 from database import init_db
 from api.routes import router as api_router
