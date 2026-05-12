@@ -11,10 +11,14 @@ from typing import Optional, List, Dict, Any
 
 import pandas as pd
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends
-from fastapi.responses import StreamingResponse, Response
 import io
 from sse_starlette.sse import EventSourceResponse
 from loguru import logger
+from fastapi_cache.decorator import cache
+import sweetviz as sv
+import tempfile
+from fastapi.responses import StreamingResponse, Response, HTMLResponse, FileResponse
+from pydantic import BaseModel
 
 from auth import get_current_user
 from database import User, SharedPin, DatasetFile, UserSettings, get_db
@@ -330,7 +334,6 @@ async def download_sample_data():
     if not os.path.exists(sample_path):
         raise HTTPException(status_code=404, detail="Sample dataset not found")
     
-    from fastapi.responses import FileResponse
     return FileResponse(
         path=sample_path,
         filename="sample_employee_data.csv",
@@ -529,11 +532,13 @@ async def query_stream(req: QueryRequest, user: User = Depends(get_current_user)
     return EventSourceResponse(event_generator())
 
 
+
 # ═══════════════════════════════════════════════════════════════
 # 3. SUMMARY & PROFILING
 # ═══════════════════════════════════════════════════════════════
 
 @router.get("/summary", response_model=SummaryResponse)
+@cache(expire=3600)
 async def get_dataset_summary(user: User = Depends(get_current_user)):
     """Dataset statistics, profiling, and data quality report."""
     state = _require_dataset(user.id)
@@ -551,12 +556,37 @@ async def get_dataset_summary(user: User = Depends(get_current_user)):
 
 
 @router.get("/insights")
+@cache(expire=3600)
 async def get_ai_insights(role: str = Query(default="analyst"), user: User = Depends(get_current_user)):
     """Generate AI-powered insights from the dataset summary."""
     state = _require_dataset(user.id)
     stats = get_summary_statistics(state["df_raw"])
     insights = state["generator"].generate_insights(stats, role=role)
     return {"insights": insights, "role": role}
+
+@router.get("/data/auto-eda")
+async def generate_auto_eda(user: User = Depends(get_current_user)):
+    """Generate a comprehensive Auto-EDA report using Sweetviz."""
+    state = _require_dataset(user.id)
+    df = state["df_raw"]
+    
+    try:
+        report = sv.analyze(df)
+        
+        # Save to a temporary file
+        fd, path = tempfile.mkstemp(suffix=".html")
+        os.close(fd)
+        report.show_html(filepath=path, open_browser=False)
+        
+        with open(path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+            
+        os.remove(path)
+        return HTMLResponse(content=html_content)
+    except Exception as e:
+        logger.error(f"Auto-EDA failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate Auto-EDA report.")
+
 
 
 @router.post("/data/clean")
@@ -615,6 +645,22 @@ async def export_data(format: str = Query(default="csv"), user: User = Depends(g
 # ═══════════════════════════════════════════════════════════════
 # 4. MACHINE LEARNING
 # ═══════════════════════════════════════════════════════════════
+
+
+class SandboxRequest(BaseModel):
+    script: str
+
+@router.post("/ml/sandbox")
+async def execute_sandbox(req: SandboxRequest, user: User = Depends(get_current_user)):
+    """Execute a Python script in a sandboxed environment on the dataset."""
+    state = _require_dataset(user.id)
+    from services.sandbox import execute_sandbox_script
+    try:
+        result = execute_sandbox_script(req.script, state["df_raw"])
+        return {"result": result}
+    except Exception as e:
+        logger.error(f"Sandbox execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/ml/predict", response_model=PredictResponse)
 async def run_prediction(req: PredictRequest, user: User = Depends(get_current_user)):
@@ -766,6 +812,20 @@ async def get_pin(pin_id: str, db: Session = Depends(get_db)):
         content_data=json.loads(pin.content_data),
         created_at=pin.created_at.isoformat()
     )
+
+@router.get("/pins/gallery", response_model=List[PinResponse])
+async def list_all_pins(db: Session = Depends(get_db)):
+    """List all public pins across the workspace (Gallery mode)."""
+    pins = db.query(SharedPin).order_by(SharedPin.created_at.desc()).limit(50).all()
+    return [
+        PinResponse(
+            id=p.id,
+            title=p.title,
+            content_type=p.content_type,
+            content_data=json.loads(p.content_data),
+            created_at=p.created_at.isoformat()
+        ) for p in pins
+    ]
 
 @router.get("/pins", response_model=List[PinResponse])
 async def list_user_pins(user: User = Depends(get_current_user), db: Session = Depends(get_db)):

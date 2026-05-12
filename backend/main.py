@@ -13,6 +13,14 @@ from config import settings
 from database import init_db
 from api.routes import router as api_router
 from api.auth_routes import router as auth_router
+from contextlib import asynccontextmanager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis import asyncio as aioredis
 
 # ── Logging ────────────────────────────────────────────────────
 logger.remove()
@@ -28,8 +36,8 @@ logger.add("logs/insightforge.log", rotation="10 MB", retention="7 days", level=
 init_db()
 logger.info("Database initialised")
 
-# ── App ────────────────────────────────────────────────────────
-from contextlib import asynccontextmanager
+# ── Rate Limiting ──────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,6 +46,11 @@ async def lifespan(app: FastAPI):
     os.makedirs("data/reports", exist_ok=True)
     os.makedirs("data/chroma_db", exist_ok=True)
     init_db()
+    
+    # Initialize Redis Cache
+    redis = aioredis.from_url(settings.REDIS_URL, encoding="utf8", decode_responses=True)
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+    
     logger.info("InsightForge AI Backend Started")
     yield
     # Shutdown
@@ -49,6 +62,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # ── CORS ───────────────────────────────────────────────────────
 app.add_middleware(

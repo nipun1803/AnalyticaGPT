@@ -26,9 +26,20 @@ const TT = {
   },
 };
 
+import { useNavigate } from 'react-router-dom';
+
 export default function Charts({ summaryData, setSummaryData }) {
   const [tab, setTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleChartClick = (data, chartType) => {
+    const query = `Analyze the ${chartType} for feature: ${data.name || data.fullName}. What does this mean for the dataset?`;
+    // For now, copy to clipboard and route to chat
+    navigator.clipboard.writeText(query);
+    toast.success("Query copied to clipboard! Opening Chat...");
+    navigate('/chat');
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -142,8 +153,8 @@ export default function Charts({ summaryData, setSummaryData }) {
                       <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} />
                       <Tooltip {...TT} />
                       <Legend />
-                      <Bar dataKey="mean" fill="var(--color-primary)" radius={[6, 6, 0, 0]} name="Mean" />
-                      <Bar dataKey="std" fill="var(--color-accent)" radius={[6, 6, 0, 0]} name="Std Dev" />
+                      <Bar dataKey="mean" fill="var(--color-primary)" radius={[6, 6, 0, 0]} name="Mean" onClick={(d) => handleChartClick(d, 'mean distribution')} cursor="pointer" />
+                      <Bar dataKey="std" fill="var(--color-accent)" radius={[6, 6, 0, 0]} name="Std Dev" onClick={(d) => handleChartClick(d, 'standard deviation')} cursor="pointer" />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -221,7 +232,7 @@ export default function Charts({ summaryData, setSummaryData }) {
                       <Pie data={catPieData} cx="50%" cy="50%" outerRadius={100} innerRadius={40}
                         paddingAngle={3} dataKey="value"
                         label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}>
-                        {catPieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        {catPieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} onClick={(e) => handleChartClick(catPieData[i], 'categorical distribution')} cursor="pointer" />)}
                       </Pie>
                       <Tooltip {...TT} />
                       <Legend />

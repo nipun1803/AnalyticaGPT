@@ -11,17 +11,18 @@ import { generateReport } from '../services/api';
 
 export default function ReportPanel() {
   const [role, setRole] = useState('analyst');
+  const [format, setFormat] = useState('pdf');
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
 
   const gen = async () => {
     setLoading(true);
-    try { const r = await generateReport(role); setReport(r); toast.success('Report ready!'); } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); } finally { setLoading(false); }
+    try { const r = await generateReport(role, format); setReport(r); toast.success('Report ready!'); } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); } finally { setLoading(false); }
   };
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div><h2 className="text-2xl font-bold text-[var(--color-foreground)]">PDF Reports</h2><p className="text-[var(--color-muted-foreground)] text-sm mt-0.5">Generate comprehensive analysis reports</p></div>
+      <div><h2 className="text-2xl font-bold text-[var(--color-foreground)]">Dynamic Reports</h2><p className="text-[var(--color-muted-foreground)] text-sm mt-0.5">Generate comprehensive analysis reports in multiple formats</p></div>
 
       <Card className="max-w-xl mx-auto">
         <CardContent className="p-8 space-y-6">
@@ -38,6 +39,15 @@ export default function ReportPanel() {
             <div className="flex gap-2 justify-center">
               {[{ v: 'analyst', l: 'Analyst', I: BarChart3 }, { v: 'manager', l: 'Manager', I: Briefcase }, { v: 'ceo', l: 'CEO', I: Crown }].map(({ v, l, I }) => (
                 <Button key={v} variant={role === v ? 'default' : 'outline'} size="sm" onClick={() => setRole(v)}><I className="w-3.5 h-3.5" /> {l}</Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-[var(--color-muted-foreground)] mb-2 block text-center">Export Format</label>
+            <div className="flex gap-2 justify-center">
+              {['pdf', 'docx', 'pptx'].map((f) => (
+                <Button key={f} variant={format === f ? 'secondary' : 'outline'} size="sm" onClick={() => setFormat(f)} className="uppercase">{f}</Button>
               ))}
             </div>
           </div>

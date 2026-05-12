@@ -26,7 +26,7 @@ import EmptyState from '../components/EmptyState';
 import ProgressLoader from '../components/ProgressLoader';
 import {
   getColumns, runPrediction, runClustering, runAnomalyDetection,
-  runForecasting, runClassification,
+  runForecasting, runClassification, executeSandbox
 } from '../services/api';
 
 const COLORS = ['#7c3aed', '#06b6d4', '#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#a78bfa', '#f472b6'];
@@ -74,6 +74,10 @@ export default function MLPanel({ datasetInfo }) {
   const [forecastTarget, setForecastTarget] = useState('');
   const [forecastPeriods, setForecastPeriods] = useState(30);
 
+  // Sandbox
+  const [sandboxScript, setSandboxScript] = useState('result = df.describe().to_dict()');
+
+
   useEffect(() => {
     getColumns()
       .then((c) => {
@@ -108,6 +112,7 @@ export default function MLPanel({ datasetInfo }) {
     { key: 'clustering', label: 'Clustering', icon: Target },
     { key: 'anomaly', label: 'Anomalies', icon: ShieldAlert },
     { key: 'forecast', label: 'Forecasting', icon: Clock },
+    { key: 'sandbox', label: 'What-If Sandbox', icon: Network },
   ];
 
   if (!datasetInfo) return <EmptyState icon={Network} title="No Data Loaded" description="Please upload or select a dataset to use the ML Engine." />;
@@ -354,6 +359,47 @@ export default function MLPanel({ datasetInfo }) {
           </Card>
           {loading && tab === 'forecast' && <ProgressLoader text="Calculating Forecast..." />}
           {results.forecast && !loading && <ForecastResults data={results.forecast} periods={forecastPeriods} />}
+        </div>
+      )}
+      {/* ── Sandbox ── */}
+      {tab === 'sandbox' && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Settings2 className="w-4 h-4 text-pink-400" /> Python Tool-Use Sandbox
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-zinc-500">
+                Write Python code to simulate "What-If" scenarios or perform complex calculations. 
+                The dataset is available as <code>df</code>. Save your final output to the <code>result</code> variable.
+              </p>
+              <textarea
+                value={sandboxScript}
+                onChange={(e) => setSandboxScript(e.target.value)}
+                className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-foreground)] font-mono focus:outline-none focus:border-[color:var(--color-primary)]"
+                rows={5}
+              />
+              <Button
+                onClick={() => run(executeSandbox, 'sandbox', sandboxScript)}
+                disabled={loading || !sandboxScript.trim()}
+              >
+                <Play className="w-4 h-4" /> Execute Script
+              </Button>
+            </CardContent>
+          </Card>
+          {loading && tab === 'sandbox' && <ProgressLoader text="Executing Sandbox Script..." />}
+          {results.sandbox && !loading && (
+             <Card>
+               <CardHeader><CardTitle className="text-sm">Execution Output</CardTitle></CardHeader>
+               <CardContent>
+                 <pre className="text-xs font-mono bg-zinc-900/50 p-4 rounded-xl text-zinc-300 overflow-x-auto whitespace-pre-wrap">
+                   {typeof results.sandbox.result === 'object' ? JSON.stringify(results.sandbox.result, null, 2) : results.sandbox.result}
+                 </pre>
+               </CardContent>
+             </Card>
+          )}
         </div>
       )}
     </div>

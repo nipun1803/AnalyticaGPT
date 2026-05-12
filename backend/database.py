@@ -38,6 +38,7 @@ class User(Base):
     avatar_url = Column(String(500), default="")
     role = Column(String(20), default="analyst")  # analyst | manager | ceo
     is_active = Column(Boolean, default=True)
+    preferences = Column(Text, default="{}")  # Stores memory, context, and UI preferences
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
 

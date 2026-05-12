@@ -242,6 +242,10 @@ export async function runStatTest(col1, col2, testType = "auto") {
     .data;
 }
 
+export async function executeSandbox(script) {
+  return (await api.post("/ml/sandbox", { script })).data;
+}
+
 // ── History & Report ──────────────────────────────────────────
 export async function getChatHistory() {
   return (await api.get("/history")).data;
@@ -249,8 +253,8 @@ export async function getChatHistory() {
 export async function clearChatHistory() {
   return (await api.delete("/history")).data;
 }
-export async function generateReport(role = "analyst") {
-  return (await api.post("/report", null, { params: { role } })).data;
+export async function generateReport(role = "analyst", format = "pdf") {
+  return (await api.post("/report", null, { params: { role, format } })).data;
 }
 
 // ── Pins ──────────────────────────────────────────────────────
@@ -262,6 +266,9 @@ export async function getPin(pinId) {
 }
 export async function listPins() {
   return (await api.get("/pins")).data;
+}
+export async function listGalleryPins() {
+  return (await api.get("/pins/gallery")).data;
 }
 
 export default api;

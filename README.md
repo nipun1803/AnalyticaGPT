@@ -62,10 +62,11 @@ A production-grade, full-stack AI-powered data analysis platform that combines *
 | 💾 **Caching Layer** | Disk-based embedding cache (pickle) to avoid recomputation |
 | ⚡ **Streaming Responses** | Token-by-token SSE streaming from Groq LLM |
 | 📄 **PDF Report Generator** | Branded PDF reports with charts, stats, AI insights using ReportLab |
-| 🔎 **Data Profiling** | Automated quality report: completeness, duplicates, memory, distributions |
-| 💬 **Query Memory** | Persistent chat history with context-aware follow-up questions |
-| 👤 **Role-based Insights** | Analyst / Manager / CEO perspectives with tailored prompts |
 | 💡 **Explainable ML** | Feature importance, prediction explanations, model metrics |
+| 📊 **Auto-EDA** | Automated high-fidelity profiling reports using Sweetviz |
+| 🛡️ **Rate Limiting** | Redis-based rate limiting (100 req/min) for production safety |
+| ⚡ **Query Caching** | Fast caching layer for insights and summaries using Redis |
+| 🐳 **Dockerized** | Production-ready Docker Compose orchestration |
 
 ---
 
@@ -79,57 +80,63 @@ A production-grade, full-stack AI-powered data analysis platform that combines *
 | GenAI | Groq API (Llama 3.1 70B) |
 | Embeddings | HuggingFace sentence-transformers (all-MiniLM-L6-v2) |
 | Vector DB | ChromaDB (persistent storage) |
-| Reports | ReportLab, Matplotlib |
+| Reports | ReportLab, Matplotlib, python-docx, python-pptx |
+| Cache/Queue | Redis, FastAPI-Cache2 |
+| Database | PostgreSQL (via SQLAlchemy + Alembic) |
 
 ---
 
-## 🛠️ Setup & Installation
-
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- A [Groq API key](https://console.groq.com/) (free tier available)
-
-### 1. Clone & Setup Backend
+### 🐳 1. Docker Deployment (Recommended)
+The fastest way to run the entire stack (Frontend, Backend, Database, Redis) is using Docker Compose.
 
 ```bash
-cd AnalyticaGPT/backend
+# Clone the repository
+git clone https://github.com/nipun1803/AnalyticaGPT.git
+cd AnalyticaGPT
 
-# Create virtual environment
+# Start everything
+docker-compose up --build
+```
+→ **Frontend:** http://localhost:5173
+→ **Backend:** http://localhost:8000
+
+### 🛠️ 2. Manual Local Setup
+
+#### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- Redis Server (Required for caching and rate limiting)
+
+#### Backend Setup
+```bash
+cd backend
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
+# Configure .env
 cp .env.example .env
-# Edit .env and add your GROQ_API_KEY
+# Set your GROQ_API_KEY and DATABASE_URL
 
-# Generate sample data (optional)
-python generate_sample_data.py
+# Run migrations
+alembic upgrade head
 
-# Start backend
-python main.py
-# → Backend running at http://localhost:8000
-# → Docs at http://localhost:8000/docs
+# Start server
+uvicorn main:app --reload
 ```
 
-### 2. Setup Frontend
-
+#### Frontend Setup
 ```bash
-cd AnalyticaGPT/frontend
-
-# Install dependencies
+cd frontend
 npm install
-
-# Start dev server
 npm run dev
-# → Frontend running at http://localhost:5173
 ```
 
-### 3. Open the App
-Navigate to **http://localhost:5173** — upload a CSV and start analysing!
+### 🚀 3. Cloud Deployment (Render)
+This project is pre-configured for **Render** using the `render.yaml` blueprint.
+1. Fork this repository.
+2. In Render, go to **Blueprints** and connect your fork.
+3. Render will automatically provision the Backend, Frontend, Postgres, and Redis services!
 
 ---
 
