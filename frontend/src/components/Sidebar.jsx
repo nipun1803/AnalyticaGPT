@@ -1,4 +1,5 @@
 import { LayoutDashboard, Upload, Table2, BarChart3, BrainCircuit, Lightbulb, MessageSquareText, FileText, LogOut, ChevronLeft, ChevronRight, Zap, Eraser, LayoutGrid, X, Moon, Sun, Link as LinkIcon } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { cn } from '../lib/utils';
 import DatasetSwitcher from './DatasetSwitcher';
@@ -64,25 +65,32 @@ export default function Sidebar({ activePage, onNavigate, datasetLoaded, collaps
           const disabled = key !== 'upload' && !datasetLoaded;
 
           return (
-            <button
+            <NavLink
               key={key}
-              onClick={() => !disabled && onNavigate(key)}
-              disabled={disabled}
+              to={`/${key}`}
+              onClick={(e) => {
+                if (disabled) e.preventDefault();
+                else onNavigate(key);
+              }}
               title={collapsed ? label : undefined}
-              className={cn(
+              className={({ isActive }) => cn(
                 "w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group",
                 collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
-                active
+                isActive
                   ? "bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] border border-[color:var(--color-primary)]/20"
                   : disabled
-                    ? "text-[var(--color-muted-foreground)] cursor-not-allowed opacity-60"
+                    ? "text-[var(--color-muted-foreground)] cursor-not-allowed opacity-60 pointer-events-none"
                     : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"
               )}
             >
-              <Icon className={cn("w-[18px] h-[18px] shrink-0 transition-transform", active && "text-[color:var(--color-primary)]", !active && !disabled && "group-hover:scale-110")} />
-              {!collapsed && <span>{label}</span>}
-              {!collapsed && active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[color:var(--color-accent)]" />}
-            </button>
+              {({ isActive }) => (
+                <>
+                  <Icon className={cn("w-[18px] h-[18px] shrink-0 transition-transform", isActive && "text-[color:var(--color-primary)]", !isActive && !disabled && "group-hover:scale-110")} />
+                  {!collapsed && <span>{label}</span>}
+                  {!collapsed && isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[color:var(--color-accent)]" />}
+                </>
+              )}
+            </NavLink>
           );
         })}
       </nav>

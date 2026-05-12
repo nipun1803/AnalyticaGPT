@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from './context/useAuth';
 import AuthPage from './pages/AuthPage';
@@ -150,21 +151,31 @@ export default function App() {
         
         <div className="flex-1 overflow-y-auto p-5 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            <Routes>
-              <Route path="/" element={<Navigate to="/upload" replace />} />
-              <Route path="/dashboard" element={<Dashboard datasetInfo={datasetInfo} summaryData={summaryData} setSummaryData={setSummaryData} />} />
-              <Route path="/upload" element={<FileUpload onSuccess={handleUploadSuccess} />} />
-              <Route path="/preview" element={<DataPreview datasetInfo={datasetInfo} />} />
-              <Route path="/charts" element={<Charts summaryData={summaryData} setSummaryData={setSummaryData} />} />
-              <Route path="/ml" element={<MLPanel datasetInfo={datasetInfo} />} />
-              <Route path="/insights" element={<InsightsPanel />} />
-              <Route path="/cleaning" element={<DataCleaning onCleanSuccess={() => setDatasetInfo(prev => ({ ...prev }))} />} />
-              <Route path="/eda" element={<EDAPanel />} />
-              <Route path="/chat" element={<ChatBox />} />
-              <Route path="/report" element={<ReportPanel />} />
-              <Route path="/pins" element={<Pins />} />
-              <Route path="*" element={<Navigate to="/upload" replace />} />
-            </Routes>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Routes location={location}>
+                  <Route path="/" element={<Navigate to="/upload" replace />} />
+                  <Route path="/dashboard" element={<Dashboard datasetInfo={datasetInfo} summaryData={summaryData} setSummaryData={setSummaryData} />} />
+                  <Route path="/upload" element={<FileUpload onSuccess={handleUploadSuccess} />} />
+                  <Route path="/preview" element={<DataPreview datasetInfo={datasetInfo} />} />
+                  <Route path="/charts" element={<Charts summaryData={summaryData} setSummaryData={setSummaryData} />} />
+                  <Route path="/ml" element={<MLPanel datasetInfo={datasetInfo} />} />
+                  <Route path="/insights" element={<InsightsPanel />} />
+                  <Route path="/cleaning" element={<DataCleaning onCleanSuccess={() => setDatasetInfo(prev => ({ ...prev }))} />} />
+                  <Route path="/eda" element={<EDAPanel />} />
+                  <Route path="/chat" element={<ChatBox />} />
+                  <Route path="/report" element={<ReportPanel />} />
+                  <Route path="/pins" element={<Pins />} />
+                  <Route path="*" element={<Navigate to="/upload" replace />} />
+                </Routes>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </main>
