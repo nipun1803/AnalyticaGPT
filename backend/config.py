@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # ── Server ─────────────────────────────────────────────────
     ENVIRONMENT: str = "development"  # "development" or "production"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://analytica-gpt.vercel.app"
 
     # ── RAG ────────────────────────────────────────────────────
     CHUNK_SIZE: int = 512

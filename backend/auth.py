@@ -54,8 +54,9 @@ def set_auth_cookie(response: Response, token: str):
         key=COOKIE_NAME,
         value=token,
         httponly=True,
+        # Only use secure=True if actually in production AND likely on HTTPS
         secure=settings.ENVIRONMENT == "production",
-        samesite="lax",
+        samesite="lax", # Lax is safer for cross-origin local/EC2 dev
         max_age=settings.JWT_EXPIRE_HOURS * 3600,
         path="/",
     )
