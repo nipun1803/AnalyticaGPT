@@ -43,8 +43,8 @@ os.makedirs("logs", exist_ok=True)
 logger.add("logs/insightforge.log", rotation="10 MB", retention="7 days", level="DEBUG")
 
 # ── Initialise database ───────────────────────────────────────
-init_db()
-logger.info("Database initialised")
+# Removed module-level init_db() to prevent blocking on import. 
+# init_db() is called inside lifespan instead.
 
 # ── Rate Limiting ──────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])

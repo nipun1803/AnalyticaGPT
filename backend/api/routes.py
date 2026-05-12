@@ -15,7 +15,7 @@ import io
 from sse_starlette.sse import EventSourceResponse
 from loguru import logger
 from fastapi_cache.decorator import cache
-import sweetviz as sv
+# import sweetviz as sv  # Moved to lazy-load inside the route
 import tempfile
 from fastapi.responses import StreamingResponse, Response, HTMLResponse, FileResponse
 from pydantic import BaseModel
@@ -72,7 +72,9 @@ from services.report import ReportGenerator
 
 router = APIRouter()
 
-# ── Per-user state (in-memory cache) ──────────────────────────
+# ── Initialise database ───────────────────────────────────────
+# Removed module-level init_db() to prevent blocking on import. 
+# init_db() is called inside lifespan instead.
 # In a full production app, use Redis or DiskCache for this.
 _user_states = {}
 
@@ -571,6 +573,7 @@ async def generate_auto_eda(user: User = Depends(get_current_user)):
     df = state["df_raw"]
     
     try:
+        import sweetviz as sv
         report = sv.analyze(df)
         
         # Save to a temporary file

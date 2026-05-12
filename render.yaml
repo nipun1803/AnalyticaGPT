@@ -5,8 +5,9 @@ services:
     plan: free
     buildCommand: |
       python -m pip install --upgrade pip setuptools wheel
-      pip install -r backend/requirements.txt --only-binary :all:
-    startCommand: "cd backend && gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT"
+      python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      python -m pip install -r backend/requirements.txt --only-binary :all:
+    startCommand: "cd backend && gunicorn -w 1 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT --timeout 120"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
