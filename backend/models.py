@@ -113,10 +113,11 @@ class UploadResponse(BaseModel):
     filename: str
     rows: int
     columns: int
-    column_types: Dict[str, str]
+    column_types: Dict[str, List[str]]
     missing_values: Dict[str, int]
     preview: List[Dict[str, Any]]
     message: str
+    suggestions: List[str] = []
     job_id: Optional[str] = None
     indexing_status: Optional[str] = None
 

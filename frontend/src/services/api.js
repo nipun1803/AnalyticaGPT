@@ -144,11 +144,17 @@ export async function getSummary() {
 export async function getInsights(role = "analyst") {
   return (await api.get("/insights", { params: { role } })).data;
 }
-export async function getPreview(rows = 10) {
-  return (await api.get("/preview", { params: { rows } })).data;
+export async function getPreview(rows = 25, page = 1, sortBy = null, sortOrder = "asc", search = null) {
+  const params = { rows, page };
+  if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder; }
+  if (search) params.search = search;
+  return (await api.get("/preview", { params })).data;
 }
 export async function getColumns() {
   return (await api.get("/columns")).data;
+}
+export async function getContextualInsight(type, data, role = "analyst") {
+  return (await api.post("/insights/contextual", { type, data, role })).data;
 }
 
 // ── Cleaning & EDA ────────────────────────────────────────────

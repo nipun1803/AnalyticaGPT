@@ -15,6 +15,7 @@ import { Badge } from '../components/ui/Badge';
 import EmptyState from '../components/EmptyState';
 import { toast } from 'sonner';
 import { getEDA, getColumns, runStatTest } from '../services/api';
+import AIInsightCard from '../components/AIInsightCard';
 
 const TT = {
   contentStyle: {
@@ -279,6 +280,22 @@ export default function EDAPanel() {
 
       {numericDists.length === 0 && categoricalDists.length === 0 && (
         <EmptyState icon={FlaskConical} title="No Distributions" description="We could not generate meaningful distributions for this dataset." />
+      )}
+
+      {/* AI Insight on numeric distributions */}
+      {numericDists.length > 0 && (
+        <AIInsightCard
+          type="eda_numeric"
+          data={{
+            features: numericDists.slice(0, 6).map(([col, d]) => ({
+              column: col,
+              mean: d.stats?.mean,
+              median: d.stats?.median,
+              std: d.stats?.std,
+              skewness: d.stats?.skewness,
+            })),
+          }}
+        />
       )}
 
       <Card className="p-4 bg-[color:var(--color-primary)]/5 border-[color:var(--color-primary)]/20 flex items-start gap-3">

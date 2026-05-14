@@ -24,6 +24,7 @@ import { Badge } from '../components/ui/Badge';
 import { toast } from 'sonner';
 import EmptyState from '../components/EmptyState';
 import ProgressLoader from '../components/ProgressLoader';
+import AIInsightCard from '../components/AIInsightCard';
 import {
   getColumns, runPrediction, runClustering, runAnomalyDetection,
   runForecasting, runClassification, executeSandbox
@@ -179,6 +180,12 @@ export default function MLPanel({ datasetInfo }) {
           </Card>
           {loading && tab === 'regression' && <ProgressLoader text="Training Regression model..." />}
           {results.regression && !loading && <RegressionResults data={results.regression} />}
+          {results.regression && !loading && (
+            <AIInsightCard
+              type="regression"
+              data={{ metrics: results.regression.metrics, target: results.regression.target, top_features: results.regression.feature_importance?.slice(0, 3) }}
+            />
+          )}
         </div>
       )}
 
@@ -237,6 +244,12 @@ export default function MLPanel({ datasetInfo }) {
           </Card>
           {loading && tab === 'classification' && <ProgressLoader text="Training Classification model..." />}
           {results.classification && !loading && <ClassificationResults data={results.classification} />}
+          {results.classification && !loading && (
+            <AIInsightCard
+              type="classification"
+              data={{ metrics: results.classification.metrics, target: results.classification.target, class_names: results.classification.class_names }}
+            />
+          )}
         </div>
       )}
 
@@ -270,6 +283,12 @@ export default function MLPanel({ datasetInfo }) {
           </Card>
           {loading && tab === 'clustering' && <ProgressLoader text="Running Clustering algorithm..." />}
           {results.clustering && !loading && <ClusterResults data={results.clustering} />}
+          {results.clustering && !loading && (
+            <AIInsightCard
+              type="clustering"
+              data={{ n_clusters: results.clustering.n_clusters, silhouette: results.clustering.silhouette_score, sizes: results.clustering.cluster_sizes }}
+            />
+          )}
         </div>
       )}
 
@@ -303,6 +322,12 @@ export default function MLPanel({ datasetInfo }) {
           </Card>
           {loading && tab === 'anomaly' && <ProgressLoader text="Detecting Anomalies..." />}
           {results.anomaly && !loading && <AnomalyResults data={results.anomaly} />}
+          {results.anomaly && !loading && (
+            <AIInsightCard
+              type="anomaly"
+              data={{ n_anomalies: results.anomaly.n_anomalies, ratio: results.anomaly.anomaly_ratio }}
+            />
+          )}
         </div>
       )}
 

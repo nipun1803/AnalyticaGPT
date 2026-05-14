@@ -88,6 +88,21 @@ export default function App() {
     if (info) navigate('/dashboard');
   };
 
+  const handleDatasetUpdated = (updatedInfo) => {
+    // Merge updated dataset info (from clean/engineer operations) into top-level state
+    // This triggers re-renders in DataPreview, Dashboard, etc.
+    setDatasetInfo((prev) => ({
+      ...prev,
+      rows: updatedInfo.rows,
+      columns: updatedInfo.columns,
+      column_types: updatedInfo.column_types || prev?.column_types,
+      missing_values: updatedInfo.missing_values || prev?.missing_values,
+      preview: updatedInfo.preview || prev?.preview,
+    }));
+    // Invalidate cached summary data since the dataset changed
+    setSummaryData(null);
+  };
+
   // Auth loading spinner
   if (authLoading) {
     return (
@@ -166,7 +181,7 @@ export default function App() {
                   <Route path="/charts" element={<Charts summaryData={summaryData} setSummaryData={setSummaryData} />} />
                   <Route path="/ml" element={<MLPanel datasetInfo={datasetInfo} />} />
                   <Route path="/insights" element={<InsightsPanel />} />
-                  <Route path="/cleaning" element={<DataCleaning onCleanSuccess={() => setDatasetInfo(prev => ({ ...prev }))} />} />
+                  <Route path="/cleaning" element={<DataCleaning datasetInfo={datasetInfo} onDatasetUpdated={handleDatasetUpdated} />} />
                   <Route path="/eda" element={<EDAPanel />} />
                   <Route path="/chat" element={<ChatBox />} />
                   <Route path="/report" element={<ReportPanel />} />

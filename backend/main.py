@@ -95,9 +95,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Static files for generated reports ─────────────────────────
+# ── Static files for frontend & reports ────────────────────────
 os.makedirs("data/reports", exist_ok=True)
 app.mount("/reports", StaticFiles(directory="data/reports"), name="reports")
+
+# Serve the React frontend (only if the directory exists, e.g. in production)
+if os.path.exists("static"):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
 
 # ── Routes ─────────────────────────────────────────────────────
 app.include_router(auth_router, prefix="/api")
@@ -122,4 +127,4 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=7860, reload=True)

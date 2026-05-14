@@ -7,7 +7,7 @@ import os
 import json
 import hashlib
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 import pandas as pd
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends
@@ -79,18 +79,11 @@ _retriever = VectorRetriever()
 _generator = LLMGenerator()
 
 # ── Per-user state (Stateful services) ────────────────────────
+user_states = {}
 
-# ── Initialise database ───────────────────────────────────────
-# Removed module-level init_db() to prevent blocking on import. 
-# init_db() is called inside lifespan instead.
-# In a full production app, use Redis or DiskCache for this.
-_user_states = {}
-
-
-def get_user_state(user_id: int):
-    """Retrieve or initialize state for a specific user."""
-    if user_id not in _user_states:
-        _user_states[user_id] = {
+def get_user_state(user_id: int) -> dict:
+    if user_id not in user_states:
+        user_states[user_id] = {
             "df_raw": None,
             "df_processed": None,
             "dataset_name": None,
@@ -98,18 +91,68 @@ def get_user_state(user_id: int):
             "preprocessor": DataPreprocessor(),
             "ml_engine": MLEngine(),
             "report_generator": ReportGenerator(),
-            "chat_history": [],
             "ml_results": {},
+            "chat_history": []
         }
-    return _user_states[user_id]
+    return user_states[user_id]
 
+# ── Initialise database ───────────────────────────────────────
+# Removed module-level init_db() to prevent blocking on import. 
+# init_db() is called inside lifespan instead.
+# In a full production app, use Redis or DiskCache for this.
+import functools
 
-def _require_dataset(user_id: int):
+@functools.lru_cache(maxsize=10)
+def _load_dataset_cached(file_path: str) -> pd.DataFrame:
+    """Load and cache the dataframe in memory using an LRU policy."""
+    logger.info(f"LRU Cache: Loading dataset from {file_path}")
+    return parse_csv(file_path)
+
+def get_active_dataset(user_id: int, db: Session) -> Tuple[Optional[pd.DataFrame], Optional[DatasetFile]]:
+    """
+    Retrieve the currently active dataset for a user from the database.
+    Loads the dataframe lazily from disk.
+    """
+    settings_row = db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+    if not settings_row or not settings_row.active_dataset_id:
+        return None, None
+    
+    ds_record = db.query(DatasetFile).filter(
+        DatasetFile.user_id == user_id, 
+        DatasetFile.dataset_id == settings_row.active_dataset_id
+    ).first()
+    
+    if not ds_record:
+        return None, None
+    
+    try:
+        df = _load_dataset_cached(ds_record.file_path)
+        return df, ds_record
+    except Exception as e:
+        logger.error(f"Failed to load active dataset {ds_record.dataset_id}: {e}")
+        return None, ds_record
+
+def _require_dataset(user_id: int, db: Session = None):
     """Guard: ensure a dataset is loaded for the user."""
-    state = get_user_state(user_id)
-    if state["df_raw"] is None:
-        raise HTTPException(status_code=400, detail="No dataset uploaded yet. Use POST /api/upload first.")
-    return state
+    from database import SessionLocal
+    session = db or SessionLocal()
+    try:
+        df, ds_record = get_active_dataset(user_id, session)
+        if df is None:
+            raise HTTPException(status_code=400, detail="No dataset active. Please upload or select a dataset.")
+        
+        # Hydrate the state for backward compatibility with older routes
+        state = get_user_state(user_id)
+        state["df_raw"] = df
+        state["dataset_name"] = ds_record.filename if ds_record else None
+        state["dataset_id"] = ds_record.dataset_id if ds_record else None
+        
+        if db is not None:
+            return df, ds_record
+        return state
+    finally:
+        if db is None:
+            session.close()
 
 
 def _set_active_dataset(db: Session, user_id: int, dataset_id: str | None):
@@ -266,6 +309,12 @@ async def upload_dataset(
         # Set active dataset for this user
         _set_active_dataset(db, user.id, dataset_id)
 
+    # Generate 3 AI suggestions based on schema
+    try:
+        suggestions = _generator.generate_schema_suggestions(get_column_info(df), file.filename)
+    except Exception:
+        suggestions = ["Analyze the top correlations", "Summarize the key trends", "Detect outliers"]
+
     return UploadResponse(
         filename=file.filename,
         rows=df.shape[0],
@@ -273,69 +322,90 @@ async def upload_dataset(
         column_types=get_column_info(df),
         missing_values=get_missing_values(df),
         preview=get_preview(df),
-        message=f"Successfully uploaded and processed '{file.filename}'",
+        message=f"Successfully uploaded '{file.filename}'",
+        suggestions=suggestions,
     )
 
 
 @router.get("/upload/status")
-async def get_upload_status(user: User = Depends(get_current_user)):
-    """Check if a dataset is currently loaded in memory for this user."""
-    state = get_user_state(user.id)
-    # If nothing loaded in memory, try to auto-rehydrate from active dataset setting.
-    if state["df_raw"] is None:
-        from database import SessionLocal
-        with SessionLocal() as db:
-            settings_row = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
-            if settings_row and settings_row.active_dataset_id:
-                ds = db.query(DatasetFile).filter(
-                    DatasetFile.user_id == user.id,
-                    DatasetFile.dataset_id == settings_row.active_dataset_id,
-                ).first()
-                if ds:
-                    try:
-                        _activate_dataset_from_record(state, ds)
-                        ds.last_used_at = datetime.now(timezone.utc)
-                        db.commit()
-                    except Exception as e:
-                        logger.error(f"Failed to rehydrate active dataset: {e}")
-    if state["df_raw"] is not None:
+async def get_upload_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Check if a dataset is currently active for this user."""
+    df, ds = get_active_dataset(user.id, db)
+    if df is not None and ds is not None:
         return {
-            "filename": state["dataset_name"],
-            "rows": len(state["df_raw"]),
-            "columns": len(state["df_raw"].columns),
-            "column_types": get_column_info(state["df_raw"]),
-            "missing_values": get_missing_values(state["df_raw"]),
-            "preview": get_preview(state["df_raw"]),
-            "dataset_id": state["dataset_id"],
+            "filename": ds.filename,
+            "rows": len(df),
+            "columns": len(df.columns),
+            "column_types": get_column_info(df),
+            "missing_values": get_missing_values(df),
+            "preview": get_preview(df),
+            "dataset_id": ds.dataset_id,
         }
     return None
 
 
 @router.get("/datasets")
-async def list_datasets(user: User = Depends(get_current_user)):
-    """List all persisted datasets for the current user."""
-    from database import SessionLocal
-    with SessionLocal() as db:
-        settings_row = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
-        active_id = settings_row.active_dataset_id if settings_row else None
-        rows = (
-            db.query(DatasetFile)
-            .filter(DatasetFile.user_id == user.id)
-            .order_by(DatasetFile.last_used_at.desc().nullslast(), DatasetFile.created_at.desc())
-            .all()
-        )
-        return [
-            {
-                "dataset_id": r.dataset_id,
-                "filename": r.filename,
-                "rows": r.rows,
-                "columns": r.columns,
-                "created_at": r.created_at.isoformat(),
-                "last_used_at": r.last_used_at.isoformat() if r.last_used_at else None,
-                "active": r.dataset_id == active_id,
-            }
-            for r in rows
-        ]
+async def list_datasets(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """List all persisted datasets for the current user, including shared ones."""
+    settings_row = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+    active_id = settings_row.active_dataset_id if settings_row else None
+    
+    # 1. Datasets owned by user
+    owned = db.query(DatasetFile).filter(DatasetFile.user_id == user.id).all()
+    
+    # 2. Datasets shared with user
+    from database import DatasetAccess
+    shared_access = db.query(DatasetAccess).filter(DatasetAccess.shared_with_id == user.id).all()
+    shared_ids = [s.dataset_id for s in shared_access]
+    shared = db.query(DatasetFile).filter(DatasetFile.dataset_id.in_(shared_ids)).all() if shared_ids else []
+    
+    all_datasets = owned + shared
+    # Sort by last_used_at
+    all_datasets.sort(key=lambda x: (x.last_used_at or datetime.min).timestamp(), reverse=True)
+
+    return [
+        {
+            "dataset_id": r.dataset_id,
+            "filename": r.filename,
+            "rows": r.rows,
+            "columns": r.columns,
+            "created_at": r.created_at.isoformat(),
+            "last_used_at": r.last_used_at.isoformat() if r.last_used_at else None,
+            "active": r.dataset_id == active_id,
+            "is_shared": r.user_id != user.id,
+        }
+        for r in all_datasets
+    ]
+
+@router.post("/datasets/{dataset_id}/share")
+async def share_dataset(dataset_id: str, email: str = Form(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Share a dataset with another user via email."""
+    # Verify ownership
+    ds = db.query(DatasetFile).filter(DatasetFile.user_id == user.id, DatasetFile.dataset_id == dataset_id).first()
+    if not ds:
+        raise HTTPException(status_code=404, detail="Dataset not found or you are not the owner")
+    
+    # Find target user
+    target_user = db.query(User).filter(User.email == email).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User with this email not found")
+    
+    # Check if already shared
+    from database import DatasetAccess
+    existing = db.query(DatasetAccess).filter(DatasetAccess.dataset_id == dataset_id, DatasetAccess.shared_with_id == target_user.id).first()
+    if existing:
+        return {"message": f"Dataset already shared with {email}"}
+    
+    # Create access record
+    access = DatasetAccess(
+        dataset_id=dataset_id,
+        owner_id=user.id,
+        shared_with_id=target_user.id,
+        access_level="viewer"
+    )
+    db.add(access)
+    db.commit()
+    return {"message": f"Successfully shared dataset with {email}"}
 
 
 @router.get("/sample-data")
@@ -418,58 +488,49 @@ async def delete_dataset(dataset_id: str, user: User = Depends(get_current_user)
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/query", response_model=QueryResponse)
-async def query_dataset(req: QueryRequest, user: User = Depends(get_current_user)):
+async def query_dataset(req: QueryRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Natural language query against the indexed dataset using RAG."""
-    state = _require_dataset(user.id)
+    df, ds = _require_dataset(user.id, db)
 
     try:
+        # Fetch actual chat history from DB instead of memory
+        from database import ChatMessage
+        history_rows = db.query(ChatMessage).filter(ChatMessage.user_id == user.id).order_by(ChatMessage.created_at.desc()).limit(10).all()
+        chat_history = [{"query": h.query, "answer": h.answer} for h in reversed(history_rows)]
+
         # Embed the query
         query_embedding = _embedding_service.embed_query(req.question)
 
         # Retrieve context
-        if req.use_hybrid:
-            docs = _retriever.hybrid_search(
-                query=req.question,
-                query_embedding=query_embedding,
-                top_k=req.top_k,
-                dataset_id=state["dataset_id"],
-            )
-        else:
-            docs = _retriever.semantic_search(
-                query_embedding=query_embedding,
-                top_k=req.top_k,
-                dataset_id=state["dataset_id"],
-            )
+        docs = _retriever.hybrid_search(
+            query=req.question,
+            query_embedding=query_embedding,
+            top_k=req.top_k,
+            dataset_id=ds.dataset_id,
+        ) if req.use_hybrid else _retriever.semantic_search(
+            query_embedding=query_embedding,
+            top_k=req.top_k,
+            dataset_id=ds.dataset_id,
+        )
 
         # Generate answer
         answer = _generator.generate(
             query=req.question,
             context_docs=docs,
             role=req.role.value,
-            chat_history=state["chat_history"],
+            chat_history=chat_history,
         )
 
         # Store in database
-        from database import SessionLocal, ChatMessage
-        with SessionLocal() as db:
-            msg = ChatMessage(
-                user_id=user.id,
-                query=req.question,
-                answer=answer,
-                role=req.role.value,
-                sources_count=len(docs),
-            )
-            db.add(msg)
-            db.commit()
-
-        # Update transient state for current session
-        state["chat_history"].append({
-            "query": req.question,
-            "answer": answer,
-            "role": req.role.value,
-            "timestamp": now_iso(),
-            "sources_count": len(docs),
-        })
+        msg = ChatMessage(
+            user_id=user.id,
+            query=req.question,
+            answer=answer,
+            role=req.role.value,
+            sources_count=len(docs),
+        )
+        db.add(msg)
+        db.commit()
 
         sources = [{"text": d["text"][:200], "type": d["metadata"].get("type", "unknown"),
                      "relevance": d.get("relevance_score", 0)} for d in docs]
@@ -550,10 +611,9 @@ async def query_stream(req: QueryRequest, user: User = Depends(get_current_user)
 
 @router.get("/summary", response_model=SummaryResponse)
 @cache(expire=3600)
-async def get_dataset_summary(user: User = Depends(get_current_user)):
+async def get_dataset_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Dataset statistics, profiling, and data quality report."""
-    state = _require_dataset(user.id)
-    df = state["df_raw"]
+    df, ds = _require_dataset(user.id, db)
     stats = get_summary_statistics(df)
     quality = get_data_quality_report(df)
     correlation = get_correlation_matrix(df)
@@ -574,6 +634,33 @@ async def get_ai_insights(role: str = Query(default="analyst"), user: User = Dep
     stats = get_summary_statistics(state["df_raw"])
     insights = _generator.generate_insights(stats, role=role)
     return {"insights": insights, "role": role}
+
+
+@router.post("/insights/contextual")
+async def get_contextual_insight(
+    context: Dict[str, Any],
+    user: User = Depends(get_current_user),
+):
+    """Generate a short AI insight for a specific analysis context (chart, ML result, etc.)."""
+    state = _require_dataset(user.id)
+    df = state["df_raw"]
+    analysis_type = context.get("type", "general")
+    data_payload = context.get("data", {})
+    role = context.get("role", "analyst")
+
+    # Build a compact summary of the dataset for context
+    shape = {"rows": len(df), "columns": len(df.columns), "column_names": df.columns.tolist()[:20]}
+    try:
+        insight = _generator.generate_contextual_insight(
+            analysis_type=analysis_type,
+            data_payload=data_payload,
+            dataset_shape=shape,
+            role=role,
+        )
+        return {"insight": insight, "type": analysis_type}
+    except Exception as e:
+        logger.error(f"Contextual insight failed: {e}")
+        return {"insight": "Could not generate insight for this analysis.", "type": analysis_type}
 
 @router.get("/data/auto-eda")
 async def generate_auto_eda(user: User = Depends(get_current_user)):
@@ -602,12 +689,34 @@ async def generate_auto_eda(user: User = Depends(get_current_user)):
 
 
 @router.post("/data/clean")
-async def clean_data(options: Dict[str, Any], user: User = Depends(get_current_user)):
-    """Perform data cleaning based on user-selected options."""
-    state = _require_dataset(user.id)
-    df_clean, report = clean_dataset(state["df_raw"], options)
+async def clean_data(options: Dict[str, Any], user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Perform data cleaning based on user-selected options.
+    Persists changes to disk and returns updated dataset info."""
+    df, ds = _require_dataset(user.id, db)
+    df_clean, report = clean_dataset(df, options)
+
+    state = get_user_state(user.id)
     state["df_raw"] = df_clean
-    return {"message": "Data cleaned successfully", "report": report}
+
+    # Persist to disk so future loads pick up cleaned data
+    if ds:
+        df_clean.to_csv(ds.file_path, index=False)
+        ds.rows = len(df_clean)
+        ds.columns = len(df_clean.columns)
+        db.commit()
+        _load_dataset_cached.cache_clear()
+
+    return {
+        "message": "Data cleaned successfully",
+        "report": report,
+        "updated_info": {
+            "rows": len(df_clean),
+            "columns": len(df_clean.columns),
+            "column_types": get_column_info(df_clean),
+            "missing_values": get_missing_values(df_clean),
+            "preview": get_preview(df_clean),
+        },
+    }
 
 
 @router.get("/data/eda")
@@ -618,17 +727,37 @@ async def get_eda(user: User = Depends(get_current_user)):
 
 
 @router.post("/data/engineer-features")
-async def api_engineer_features(user: User = Depends(get_current_user)):
+async def api_engineer_features(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Automatically engineer new features for the dataset."""
-    state = _require_dataset(user.id)
-    df_engineered, report = engineer_features(state["df_raw"])
+    df, ds = _require_dataset(user.id, db)
+    df_engineered, report = engineer_features(df)
+    
+    # Save the cleaned/engineered version back to disk
+    df_engineered.to_csv(ds.file_path, index=False)
+    
+    # Clear the LRU cache for this file path so it reloads the new version
+    _load_dataset_cached.cache_clear()
+
+    # Update in-memory state and DB record
+    state = get_user_state(user.id)
     state["df_raw"] = df_engineered
+    if ds:
+        ds.rows = len(df_engineered)
+        ds.columns = len(df_engineered.columns)
+        db.commit()
     
     n = len(report["new_features_created"])
     return {
-        "message": f"Engineered {n} new feature{'s' if n != 1 else ''}." if n else "No additional features needed — dataset is already well-structured.",
+        "message": f"Engineered {n} new feature{'s' if n != 1 else ''}." if n else "No additional features needed.",
         "new_features": report["new_features_created"],
         "descriptions": report.get("descriptions", []),
+        "updated_info": {
+            "rows": len(df_engineered),
+            "columns": len(df_engineered.columns),
+            "column_types": get_column_info(df_engineered),
+            "missing_values": get_missing_values(df_engineered),
+            "preview": get_preview(df_engineered),
+        },
     }
 
 @router.get("/data/export")
@@ -675,17 +804,17 @@ async def execute_sandbox(req: SandboxRequest, user: User = Depends(get_current_
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/ml/predict", response_model=PredictResponse)
-async def run_prediction(req: PredictRequest, user: User = Depends(get_current_user)):
+async def run_prediction(req: PredictRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Run linear regression on the dataset."""
-    state = _require_dataset(user.id)
+    df, ds = _require_dataset(user.id, db)
     try:
-        result = state["ml_engine"].run_regression(
-            df=state["df_raw"],
+        ml_engine = MLEngine()
+        result = ml_engine.run_regression(
+            df=df,
             target_column=req.target_column,
             feature_columns=req.feature_columns,
             test_size=req.test_size,
         )
-        state["ml_results"]["regression"] = result
         return PredictResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -936,12 +1065,41 @@ async def clear_chat_history(user: User = Depends(get_current_user)):
 # ═══════════════════════════════════════════════════════════════
 
 @router.get("/preview")
-async def get_data_preview(rows: int = Query(default=10, ge=1, le=100), user: User = Depends(get_current_user)):
-    """Return first N rows of the uploaded dataset."""
+async def get_data_preview(
+    rows: int = Query(default=25, ge=1, le=500),
+    page: int = Query(default=1, ge=1),
+    sort_by: Optional[str] = Query(default=None),
+    sort_order: str = Query(default="asc"),
+    search: Optional[str] = Query(default=None),
+    user: User = Depends(get_current_user),
+):
+    """Server-side paginated, searchable, sortable preview."""
     state = _require_dataset(user.id)
+    df = state["df_raw"]
+
+    # Search filter
+    if search:
+        mask = df.apply(lambda r: r.astype(str).str.contains(search, case=False, na=False).any(), axis=1)
+        df = df[mask]
+
+    total_filtered = len(df)
+
+    # Sort
+    if sort_by and sort_by in df.columns:
+        df = df.sort_values(by=sort_by, ascending=(sort_order == "asc"), na_position="last")
+
+    # Paginate
+    start = (page - 1) * rows
+    end = start + rows
+    page_df = df.iloc[start:end]
+
     return {
-        "preview": get_preview(state["df_raw"], n=rows),
+        "preview": get_preview(page_df, n=len(page_df)),
         "total_rows": len(state["df_raw"]),
+        "total_filtered": total_filtered,
+        "page": page,
+        "page_size": rows,
+        "total_pages": max(1, -(-total_filtered // rows)),
         "columns": state["df_raw"].columns.tolist(),
     }
 

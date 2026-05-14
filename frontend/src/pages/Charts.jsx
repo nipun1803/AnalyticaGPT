@@ -17,6 +17,7 @@ import { Button } from '../components/ui/Button';
 import { SkeletonChart } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { getSummary } from '../services/api';
+import AIInsightCard from '../components/AIInsightCard';
 
 const COLORS = ['#6366F1', '#22D3EE', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#A78BFA'];
 const TT = {
@@ -359,6 +360,26 @@ export default function Charts({ summaryData, setSummaryData }) {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* AI Insight for current tab */}
+      {summaryData && tab === 'overview' && numCols.length > 0 && (
+        <AIInsightCard
+          type="chart_overview"
+          data={{ features: numCols.slice(0, 10), stats: statsData.slice(0, 8) }}
+        />
+      )}
+      {summaryData && tab === 'shape' && (
+        <AIInsightCard
+          type="chart_shape"
+          data={{ features: statsData.map(d => ({ name: d.fullName, skewness: d.skewness, kurtosis: d.kurtosis })).slice(0, 10) }}
+        />
+      )}
+      {summaryData && corr?.columns?.length > 0 && tab !== 'categorical' && tab !== 'shape' && tab !== 'spread' && (
+        <AIInsightCard
+          type="correlation"
+          data={{ columns: corr.columns.slice(0, 8), sample_values: corr.values?.slice(0, 5)?.map(r => r.slice(0, 5)) }}
+        />
       )}
     </div>
   );

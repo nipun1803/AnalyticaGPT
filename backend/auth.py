@@ -54,9 +54,9 @@ def set_auth_cookie(response: Response, token: str):
         key=COOKIE_NAME,
         value=token,
         httponly=True,
-        # Only use secure=True if actually in production AND likely on HTTPS
-        secure=settings.ENVIRONMENT == "production",
-        samesite="lax", # Lax is safer for cross-origin local/EC2 dev
+        # Must be True for SameSite=None
+        secure=True, 
+        samesite="none", # Required for cross-domain (Vercel -> HF)
         max_age=settings.JWT_EXPIRE_HOURS * 3600,
         path="/",
     )

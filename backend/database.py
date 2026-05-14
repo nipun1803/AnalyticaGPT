@@ -119,8 +119,29 @@ class SharedPin(Base):
     content_data = Column(Text, nullable=False) # JSON
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+
+class DatasetAccess(Base):
+    """
+    Tracks which users have access to which datasets (sharing).
+    """
+    __tablename__ = "dataset_access"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dataset_id = Column(String(64), index=True, nullable=False)
+    owner_id = Column(Integer, index=True, nullable=False)
+    shared_with_id = Column(Integer, index=True, nullable=False)
+    access_level = Column(String(20), default="viewer") # viewer | editor
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
 # ── Create all tables ──────────────────────────────────────────
 def init_db():
+    from sqlalchemy import text
+    try:
+        if not is_sqlite:
+            with engine.begin() as conn:
+                conn.execute(text("DROP SEQUENCE IF EXISTS dataset_access_id_seq CASCADE"))
+    except Exception as e:
+        pass
     Base.metadata.create_all(bind=engine)
 
 

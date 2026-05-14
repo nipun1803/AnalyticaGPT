@@ -60,17 +60,6 @@ def _classify_columns(df: pd.DataFrame) -> Dict[str, List[str]]:
     categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
     datetime_cols = df.select_dtypes(include=["datetime64"]).columns.tolist()
 
-    # Detect date-like string columns
-    for col in categorical_cols[:]:
-        if any(kw in col.lower() for kw in ["date", "time", "created", "updated", "timestamp"]):
-            try:
-                parsed = pd.to_datetime(df[col], errors="coerce")
-                if parsed.notna().sum() / len(df) > 0.5:
-                    datetime_cols.append(col)
-                    categorical_cols.remove(col)
-            except Exception:
-                pass
-
     id_cols = [c for c in numeric_cols if _is_id_column(df, c)]
     constant_cols = [c for c in df.columns if _is_constant_column(df, c)]
 
@@ -94,9 +83,42 @@ def _classify_columns(df: pd.DataFrame) -> Dict[str, List[str]]:
     }
 
 
-def get_column_info(df: pd.DataFrame) -> Dict[str, str]:
-    """Return a mapping of column name → dtype string."""
-    return {col: str(dtype) for col, dtype in df.dtypes.items()}
+def get_column_info(df: pd.DataFrame) -> Dict[str, List[str]]:
+    """
+    Categorizes columns into numeric, categorical, and datetime.
+    Includes 'Smart Detection' for IDs, Zip Codes, and Years.
+    """
+    numeric = []
+    categorical = []
+    datetime_cols = []
+    
+    for col in df.columns:
+        # 1. Check for Datetime
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            datetime_cols.append(col)
+            continue
+            
+        # 2. Smart Detection: Is this a "Fake" Number? (IDs, ZipCodes, Years)
+        is_num = pd.api.types.is_numeric_dtype(df[col])
+        if is_num:
+            col_lower = col.lower()
+            unique_count = df[col].nunique()
+            # If name suggests it's an ID or Zip, or it has very few unique values
+            if any(key in col_lower for key in ["id", "zip", "post", "code", "year", "phone", "key"]):
+                categorical.append(col)
+                continue
+            if unique_count < 20 and len(df) > 100: 
+                 categorical.append(col)
+                 continue
+            numeric.append(col)
+        else:
+            categorical.append(col)
+            
+    return {
+        "numeric": numeric,
+        "categorical": categorical,
+        "datetime": datetime_cols,
+    }
 
 
 def get_missing_values(df: pd.DataFrame) -> Dict[str, int]:
@@ -331,9 +353,10 @@ def engineer_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     # 2. Create meaningful ratios between correlated numeric pairs
     numeric = col_info["numeric"]
     if len(numeric) >= 2:
-        # Find the most correlated pair
+        # Calculate correlation and set diagonal to 0
         corr_matrix = df_eng[numeric].corr().abs()
-        np.fill_diagonal(corr_matrix.values, 0)
+        mask = np.eye(len(corr_matrix), dtype=bool)
+        corr_matrix = corr_matrix.mask(mask, 0)
 
         # Get top 3 correlated pairs for ratio features
         pairs_created = 0

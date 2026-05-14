@@ -71,7 +71,8 @@ class LLMGenerator:
             f"Question: {query}\n\n"
             f"Provide a comprehensive, well-structured answer. "
             f"If the context doesn't contain enough information, say so clearly. "
-            f"Use bullet points and numbers for clarity where appropriate."
+            f"Use bullet points and numbers for clarity where appropriate.\n\n"
+            f"CRITICAL: At the end of your answer, add a '--- DATA LINEAGE ---' section listing the specific column names used from the dataset to derive this answer."
         )
         messages.append({"role": "user", "content": user_message})
 
@@ -112,7 +113,8 @@ class LLMGenerator:
             f"Based on the following data context, answer the user's question.\n\n"
             f"--- DATA CONTEXT ---\n{context_text}\n--- END CONTEXT ---\n\n"
             f"Question: {query}\n\n"
-            f"Provide a comprehensive, well-structured answer."
+            f"Provide a comprehensive, well-structured answer.\n\n"
+            f"CRITICAL: At the end of your answer, add a '--- DATA LINEAGE ---' section listing the specific column names used from the dataset."
         )
         messages.append({"role": "user", "content": user_message})
 
@@ -202,8 +204,89 @@ class LLMGenerator:
             logger.error(f"Chart insight generation failed: {e}")
             return {"distribution": "", "skewness": "", "categorical": ""}
 
-    @staticmethod
-    def _format_context(docs: List[Dict]) -> str:
+    def generate_schema_suggestions(self, col_info: Dict[str, List[str]], filename: str) -> List[str]:
+        """Generate 3 smart suggested questions based on the dataset schema."""
+        messages = [
+            {"role": "system", "content": "You are a data strategist. Given a file name and its column types, suggest 3 highly relevant business questions."},
+            {
+                "role": "user",
+                "content": (
+                    f"File: {filename}\nColumns: {json.dumps(col_info)}\n\n"
+                    "Return ONLY a JSON array of 3 strings (questions)."
+                )
+            }
+        ]
+        try:
+            response = self.client.chat.completions.create(
+                model=settings.GROQ_MODEL,
+                messages=messages,
+                temperature=0.7,
+                response_format={"type": "json_object"},
+            )
+            # The prompt asks for a JSON array, but with json_object we might get {"suggestions": [...]}
+            res = json.loads(response.choices[0].message.content)
+            if isinstance(res, dict):
+                 return list(res.values())[0] if res.values() else []
+            return res
+        except Exception as e:
+            logger.error(f"Schema suggestion failed: {e}")
+            return ["What are the key trends in this data?", "How do different variables correlate?", "Can you summarize the outliers?"]
+    def generate_contextual_insight(
+        self,
+        analysis_type: str,
+        data_payload: Dict,
+        dataset_shape: Dict,
+        role: str = "analyst",
+    ) -> str:
+        """Generate a short, context-specific AI insight for a chart/ML result/EDA panel."""
+        system_prompt = ROLE_PROMPTS.get(role, ROLE_PROMPTS["analyst"])
+
+        type_hints = {
+            "regression": "regression model results (R², RMSE, feature importance)",
+            "classification": "classification model results (accuracy, F1, confusion matrix)",
+            "clustering": "clustering results (silhouette score, cluster sizes)",
+            "anomaly": "anomaly detection results (anomaly count, contamination rate)",
+            "forecast": "time-series forecasting results (R², forecast values)",
+            "chart_overview": "summary statistics chart (mean, std dev across features)",
+            "chart_spread": "feature range chart (min, max, mean)",
+            "chart_shape": "distribution shape chart (skewness, kurtosis)",
+            "chart_categorical": "categorical distribution chart",
+            "eda_numeric": "numeric distribution histogram",
+            "eda_categorical": "categorical value frequency chart",
+            "correlation": "correlation matrix heatmap",
+            "cleaning": "data cleaning operation results",
+        }
+        context_desc = type_hints.get(analysis_type, f"a '{analysis_type}' analysis")
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"You are looking at {context_desc} from a dataset with {dataset_shape.get('rows', '?')} rows "
+                    f"and {dataset_shape.get('columns', '?')} columns.\n\n"
+                    f"Analysis data:\n{json.dumps(data_payload, indent=2, default=str)[:2000]}\n\n"
+                    f"Provide a concise insight (2-4 sentences) that explains:\n"
+                    f"1. What this result means in plain English\n"
+                    f"2. One actionable recommendation or something noteworthy\n\n"
+                    f"Be specific and reference actual numbers from the data. Do NOT use markdown headers."
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=settings.GROQ_MODEL,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=300,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Contextual insight generation failed: {e}")
+            return "Unable to generate insight at this time."
+
+    def _format_context(self, docs: List[Dict]) -> str:
         """Format retrieved documents into a context string."""
         if not docs:
             return "No relevant context found."
