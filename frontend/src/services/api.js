@@ -263,10 +263,6 @@ export async function generateReport(role = "analyst", format = "pdf") {
   return (await api.post("/report", null, { params: { role, format } })).data;
 }
 
-export async function getContextualInsight(type, data, role = "analyst") {
-  return (await api.post("/insights/contextual", { type, data, role })).data;
-}
-
 // ── Pins ──────────────────────────────────────────────────────
 export async function createPin(title, contentType, contentData) {
   return (await api.post("/pins", { title, content_type: contentType, content_data: contentData })).data;
