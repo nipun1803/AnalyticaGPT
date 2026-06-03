@@ -260,7 +260,12 @@ export async function clearChatHistory() {
   return (await api.delete("/history")).data;
 }
 export async function generateReport(role = "analyst", format = "pdf") {
-  return (await api.post("/report", null, { params: { role, format } })).data;
+  const res = (await api.post("/report", null, { params: { role, format } })).data;
+  if (res && res.report_url && res.report_url.startsWith("/")) {
+    const baseUrl = API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    res.report_url = `${baseUrl}${res.report_url}`;
+  }
+  return res;
 }
 
 // ── Pins ──────────────────────────────────────────────────────
