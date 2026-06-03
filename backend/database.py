@@ -14,6 +14,9 @@ engine_args = {}
 
 if is_sqlite:
     engine_args["connect_args"] = {"check_same_thread": False}
+else:
+    engine_args["pool_pre_ping"] = True
+    engine_args["pool_recycle"] = 300
 
 engine = create_engine(
     settings.sqlalchemy_database_url,
