@@ -61,12 +61,9 @@ def set_auth_cookie(response: Response, token: str):
         path="/",
     )
 
-
 def clear_auth_cookie(response: Response):
     response.delete_cookie(key=COOKIE_NAME, path="/")
 
-
-# ── Current User Dependency ───────────────────────────
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     """Extract user from httpOnly cookie JWT. Raises 401 if invalid."""

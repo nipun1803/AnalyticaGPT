@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Target, ShieldAlert, Play, Settings2, Clock,
-  GitBranch, Network
+  GitBranch, Network, Lightbulb
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -431,6 +431,44 @@ export default function MLPanel({ datasetInfo }) {
   );
 }
 
+// ── Shared Insight Card ──────────────────────────────────────────
+function MLInsightCard({ title, description, insights = [], recommendations = [] }) {
+  return (
+    <Card className="border-l-4 border-l-[color:var(--color-primary)] bg-[color:var(--color-primary)]/[0.03]">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[color:var(--color-primary)]/10 flex items-center justify-center shrink-0 mt-0.5">
+            <Lightbulb className="w-4 h-4 text-[color:var(--color-primary)]" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] font-bold text-[color:var(--color-primary)] uppercase tracking-widest mb-1">Insight — {title}</p>
+            <p className="text-xs text-[var(--color-foreground)] leading-relaxed">{description}</p>
+          </div>
+        </div>
+        {insights.length > 0 && (
+          <div className="pl-11 space-y-0.5">
+            {insights.map((ins, i) => (
+              <p key={i} className="text-[11px] text-[var(--color-muted-foreground)] flex items-start gap-1.5">
+                <span className="text-[color:var(--color-primary)] font-bold">→</span> {ins}
+              </p>
+            ))}
+          </div>
+        )}
+        {recommendations.length > 0 && (
+          <div className="pl-11">
+            <p className="text-[10px] font-bold text-[color:var(--color-success)] uppercase tracking-widest mb-0.5">Recommendations</p>
+            {recommendations.map((r, i) => (
+              <p key={i} className="text-[11px] text-[var(--color-muted-foreground)] flex items-start gap-1.5">
+                <span className="text-[color:var(--color-success)] font-bold">✓</span> {r}
+              </p>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Result Components ───────────────────────────────────────────
 
 function RegressionResults({ data }) {
@@ -439,19 +477,18 @@ function RegressionResults({ data }) {
     importance: f.importance,
     coefficient: f.coefficient,
   }));
+  const r2 = data.metrics.r2_score;
 
   return (
     <div className="space-y-4">
-      {/* Primary metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricCard label="R² Score" value={data.metrics.r2_score}
-          color={data.metrics.r2_score > 0.8 ? 'text-emerald-400' : data.metrics.r2_score > 0.5 ? 'text-amber-400' : 'text-red-400'} />
+        <MetricCard label="R² Score" value={r2}
+          color={r2 > 0.8 ? 'text-emerald-400' : r2 > 0.5 ? 'text-amber-400' : 'text-red-400'} />
         <MetricCard label="RMSE" value={data.metrics.rmse} />
         <MetricCard label="MAE" value={data.metrics.mae} />
         <MetricCard label="Test Samples" value={data.metrics.test_samples} />
       </div>
 
-      {/* Cross-validation row */}
       {data.metrics.cv_r2_mean !== undefined && (
         <Card>
           <CardContent className="p-4 flex items-center gap-6">
@@ -472,16 +509,23 @@ function RegressionResults({ data }) {
 
       {imp?.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-sm">Feature Importance (Random Forest)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm">
+              📊 Feature Importance — Random Forest Regression
+              <span className="text-xs font-normal text-[var(--color-muted-foreground)] ml-2">Relative contribution of each feature to predictions</span>
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={imp} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.5} />
-                  <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} />
+                  <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }}
+                    label={{ value: 'Importance Score', position: 'insideBottom', offset: -5, fontSize: 10, fill: '#71717a' }} />
                   <YAxis type="category" dataKey="name" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={110} />
-                  <Tooltip {...TT} />
-                  <Bar dataKey="importance" fill="#7c3aed" radius={[0, 6, 6, 0]} />
+                  <Tooltip {...TT} formatter={(v) => [v?.toFixed(4), 'Importance']} />
+                  <Legend verticalAlign="top" height={25} />
+                  <Bar dataKey="importance" fill="#7c3aed" radius={[0, 6, 6, 0]} name="Feature Importance" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -489,8 +533,22 @@ function RegressionResults({ data }) {
         </Card>
       )}
 
+      <MLInsightCard
+        title="Regression Model Performance"
+        description={r2 > 0.8 ? `The model explains ${(r2 * 100).toFixed(1)}% of variance — excellent predictive power. Feature importance reveals the key business drivers.` : r2 > 0.5 ? `The model explains ${(r2 * 100).toFixed(1)}% of variance — moderate performance. Additional features or non-linear models may improve accuracy.` : `The model only explains ${(r2 * 100).toFixed(1)}% of variance — consider feature engineering, more data, or trying non-linear models (XGBoost, neural nets).`}
+        insights={[
+          `R² = ${r2?.toFixed(4)} — ${r2 > 0.8 ? 'strong' : r2 > 0.5 ? 'moderate' : 'weak'} explanatory power`,
+          `RMSE = ${data.metrics.rmse?.toFixed(4)} — average prediction error in target units`,
+          imp?.[0] ? `Top driver: "${imp[0].name}" (importance: ${imp[0].importance?.toFixed(3)})` : 'Feature importance not available',
+        ]}
+        recommendations={[
+          r2 < 0.7 ? 'Consider adding interaction terms or polynomial features to capture non-linear patterns' : 'Model is performing well — validate on holdout data before deployment',
+          imp?.length > 3 ? `Focus business efforts on top 3 features: ${imp.slice(0, 3).map(f => f.name).join(', ')}` : 'Gather more features to improve model coverage',
+        ]}
+      />
+
       <Card>
-        <CardHeader><CardTitle className="text-sm">Explanation</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">Model Explanation</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-[var(--color-muted-foreground)]">{data.explanation}</p>
         </CardContent>
@@ -580,7 +638,10 @@ function ClassificationResults({ data }) {
       {matrix.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Confusion Matrix</CardTitle>
+            <CardTitle className="text-sm">
+              🎯 Confusion Matrix — Predicted vs Actual Classes
+              <span className="text-xs font-normal text-[var(--color-muted-foreground)] ml-2">Green diagonal = correct, off-diagonal = errors</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto max-h-[400px] overflow-y-auto p-0">
             <table className="text-xs mx-auto relative w-full">
@@ -620,8 +681,22 @@ function ClassificationResults({ data }) {
         </Card>
       )}
 
+      <MLInsightCard
+        title="Classification Model Assessment"
+        description={`Model achieved ${(data.metrics.accuracy * 100).toFixed(1)}% accuracy with F1=${data.metrics.f1_score?.toFixed(3)}. ${data.metrics.accuracy > 0.9 ? 'Excellent classification performance.' : data.metrics.accuracy > 0.75 ? 'Good performance — some misclassification patterns exist.' : 'Classification needs improvement — consider feature engineering or class balancing.'}`}
+        insights={[
+          `Accuracy: ${(data.metrics.accuracy * 100).toFixed(1)}% — ${data.metrics.accuracy > 0.9 ? 'production-ready' : 'needs validation'}`,
+          `Precision: ${data.metrics.precision?.toFixed(3)} | Recall: ${data.metrics.recall?.toFixed(3)}`,
+          imp?.[0] ? `Most predictive feature: "${imp[0].name}"` : 'Feature importance unavailable',
+        ]}
+        recommendations={[
+          data.metrics.accuracy < 0.85 ? 'Try SMOTE oversampling if classes are imbalanced' : 'Validate model stability with k-fold cross-validation',
+          'Review confusion matrix for systematic misclassification patterns',
+        ]}
+      />
+
       <Card>
-        <CardHeader><CardTitle className="text-sm">Explanation</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">Model Explanation</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-[var(--color-muted-foreground)]">{data.explanation}</p>
         </CardContent>
@@ -694,6 +769,20 @@ function ClusterResults({ data }) {
           </Card>
         )}
       </div>
+
+      <MLInsightCard
+        title="Clustering Segmentation"
+        description={`Data segmented into ${data.n_clusters} clusters with silhouette score of ${data.silhouette_score?.toFixed(3)}. ${data.silhouette_score > 0.5 ? 'Well-separated clusters — segments are distinct.' : data.silhouette_score > 0.25 ? 'Moderate separation — some overlap between segments.' : 'Low separation — clusters overlap significantly, consider different features or fewer clusters.'}`}
+        insights={[
+          `Optimal clusters: ${data.n_clusters} (${data.silhouette_score > 0.5 ? 'strong' : 'moderate'} separation)`,
+          `${data.feature_columns?.length || 'Multiple'} features used for segmentation`,
+          'Cluster profiles reveal distinct behavioral segments for targeted actions',
+        ]}
+        recommendations={[
+          'Use cluster labels to create targeted marketing or operational strategies per segment',
+          data.silhouette_score < 0.3 ? 'Try reducing dimensionality with PCA before clustering' : 'Cluster structure is robust — proceed with segment-based analysis',
+        ]}
+      />
     </div>
   );
 }
@@ -739,6 +828,20 @@ function AnomalyResults({ data }) {
           </CardContent>
         </Card>
       )}
+
+      <MLInsightCard
+        title="Anomaly Detection"
+        description={`Detected ${data.n_anomalies} anomalies (${(data.anomaly_ratio * 100).toFixed(1)}% of dataset). ${data.anomaly_ratio > 0.1 ? 'High anomaly rate — verify contamination threshold or investigate systemic data issues.' : 'Anomaly rate is within expected bounds for most business domains.'}`}
+        insights={[
+          `${data.n_anomalies} records flagged as anomalous using Isolation Forest algorithm`,
+          `Anomaly ratio: ${(data.anomaly_ratio * 100).toFixed(1)}% — ${data.anomaly_ratio > 0.1 ? 'elevated' : 'normal'} for typical datasets`,
+          'Anomalies may represent fraud, data entry errors, or genuinely unusual events',
+        ]}
+        recommendations={[
+          'Review anomaly samples to distinguish genuine outliers from data quality issues',
+          data.anomaly_ratio > 0.15 ? 'Consider reducing contamination parameter for stricter detection' : 'Current detection threshold appears appropriate',
+        ]}
+      />
     </div>
   );
 }
@@ -880,8 +983,22 @@ function ForecastResults({ data, periods }) {
         </CardContent>
       </Card>
 
+      <MLInsightCard
+        title="Time-Series Forecast"
+        description={`${periods}-day forecast generated. ${data.metrics?.r2_score > 0.7 ? 'Model captures historical patterns well — forecast is reliable for short-term planning.' : 'Historical fit is moderate — use forecast directionally rather than for precise planning.'}`}
+        insights={[
+          `Train R²: ${data.metrics?.r2_score?.toFixed(3)} — ${data.metrics?.r2_score > 0.7 ? 'good' : 'moderate'} historical fit`,
+          data.metrics?.residual_std ? `Residual std: ${data.metrics.residual_std?.toFixed(3)} — typical forecast error magnitude` : 'Residual statistics unavailable',
+          `Forecast horizon: ${periods} days with ${data.metrics?.confidence_95_width ? '95% confidence intervals' : 'point estimates'}`,
+        ]}
+        recommendations={[
+          'Reforecast monthly as new data arrives to maintain accuracy',
+          data.metrics?.r2_score < 0.6 ? 'Consider adding external factors (seasonality, events) to improve forecast' : 'Model is suitable for operational planning and budgeting',
+        ]}
+      />
+
       <Card>
-        <CardHeader><CardTitle className="text-sm">Explanation</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">Forecast Explanation</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-[var(--color-muted-foreground)]">{data.explanation}</p>
         </CardContent>

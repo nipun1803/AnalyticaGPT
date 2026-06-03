@@ -31,8 +31,14 @@ export default function App() {
   const location = useLocation();
   const activePage = location.pathname.substring(1) || 'upload';
 
-  const [datasetInfo, setDatasetInfo] = useState(null);
-  const [summaryData, setSummaryData] = useState(null);
+  const [datasetInfo, setDatasetInfo] = useState(() => {
+    const saved = localStorage.getItem('insightforge_dataset');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [summaryData, setSummaryData] = useState(() => {
+    const saved = localStorage.getItem('insightforge_summary');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
@@ -49,21 +55,42 @@ export default function App() {
   
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
+  // Sync to localStorage
+  useEffect(() => {
+    if (datasetInfo) {
+      localStorage.setItem('insightforge_dataset', JSON.stringify(datasetInfo));
+    } else {
+      localStorage.removeItem('insightforge_dataset');
+    }
+  }, [datasetInfo]);
+
+  useEffect(() => {
+    if (summaryData) {
+      localStorage.setItem('insightforge_summary', JSON.stringify(summaryData));
+    } else {
+      localStorage.removeItem('insightforge_summary');
+    }
+  }, [summaryData]);
+
   // Restore session on mount
   useEffect(() => {
-    if (user && !datasetInfo) {
+    if (user) {
       getUploadStatus()
         .then((status) => {
           if (status) {
             setDatasetInfo(status);
-            if (location.pathname === '/' || location.pathname === '/upload') {
+            // Only redirect if they don't have a dataset loaded AND are on upload page
+            if (!datasetInfo && (location.pathname === '/' || location.pathname === '/upload')) {
               navigate('/dashboard', { replace: true });
             }
+          } else {
+            setDatasetInfo(null);
+            setSummaryData(null);
           }
         })
         .catch(() => {});
     }
-  }, [user, datasetInfo, navigate, location.pathname]);
+  }, [user, navigate, location.pathname]);
 
   // Minimal onboarding tour (first login only)
   useEffect(() => {

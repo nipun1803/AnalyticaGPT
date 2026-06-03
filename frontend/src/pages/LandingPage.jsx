@@ -59,14 +59,14 @@ export default function LandingPage() {
     <div className="min-h-screen bg-black text-white overflow-hidden font-sans relative selection:bg-white selection:text-black">
       {/* Background Grid */}
       <div className="fixed inset-0 z-0 opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-      
+
       {/* Navbar */}
-      <nav 
-        role="navigation" 
+      <nav
+        role="navigation"
         aria-label="Main Navigation"
         className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 lg:px-12 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-white/10' : 'bg-transparent'}`}
       >
-        <motion.div 
+        <motion.div
           initial="hidden" animate="visible" variants={fadeIn}
           className="flex items-center gap-3"
         >
@@ -76,7 +76,7 @@ export default function LandingPage() {
           <span className="text-xl font-bold tracking-tight">AnalyticaGPT</span>
         </motion.div>
         <motion.div initial="hidden" animate="visible" variants={fadeIn}>
-          <button 
+          <button
             onClick={() => setShowAuth(true)}
             className="px-5 py-2 text-sm font-semibold bg-white text-black hover:bg-gray-200 transition-colors rounded-full"
           >
@@ -86,12 +86,12 @@ export default function LandingPage() {
       </nav>
 
       <main className="relative z-10 flex flex-col items-center">
-        
+
         {/* Hero Section */}
         <section className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8 text-center pt-20 w-full">
-          
+
           {/* 3D Element Container */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.5, ease: "easeOut" }}
@@ -112,27 +112,30 @@ export default function LandingPage() {
               <Sparkles className="w-4 h-4" />
               <span>Introducing AnalyticaGPT Enterprise</span>
             </motion.div>
-            
+
             <motion.h1 variants={fadeIn} className="text-5xl sm:text-7xl lg:text-8xl font-extrabold tracking-tighter leading-[1.05]">
-              Intelligence <br className="hidden sm:block"/>
+              Intelligence <br className="hidden sm:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-100 via-gray-400 to-gray-600">
                 Redefined.
               </span>
             </motion.h1>
-            
+
             <motion.p variants={fadeIn} className="max-w-2xl mx-auto text-lg sm:text-xl text-gray-400 font-light leading-relaxed">
               Elevate your data analysis with AI-powered insights, automated EDA, and professional reporting in a seamless, high-performance environment.
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-              <button 
+              <button
                 onClick={() => setShowAuth(true)}
                 className="group flex items-center gap-2 px-8 py-4 bg-white text-black font-bold rounded-full hover:bg-gray-200 hover:scale-105 transition-all w-full sm:w-auto justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)]"
               >
                 Get Started Free
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button className="px-8 py-4 bg-black border border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-all w-full sm:w-auto">
+              <button
+                onClick={() => document.getElementById('overview-section').scrollIntoView({ behavior: 'smooth' })}
+                className="px-8 py-4 bg-black border border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-all w-full sm:w-auto"
+              >
                 View Documentation
               </button>
             </motion.div>
@@ -140,9 +143,9 @@ export default function LandingPage() {
         </section>
 
         {/* Platform Overview */}
-        <section className="w-full py-32 px-6 lg:px-12 bg-gradient-to-b from-transparent to-white/5 border-t border-white/10">
+        <section id="overview-section" className="w-full py-32 px-6 lg:px-12 bg-gradient-to-b from-transparent to-white/5 border-t border-white/10">
           <div className="max-w-7xl mx-auto">
-            <motion.div 
+            <motion.div
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger}
               className="text-center mb-20"
             >
@@ -152,19 +155,19 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
-                { title: "Smart Analytics", icon: <BarChart2 className="w-6 h-6"/>, desc: "Automated insights and interactive Recharts visualizations tailored to your specific dataset columns." },
-                { title: "Machine Learning", icon: <BrainCircuit className="w-6 h-6"/>, desc: "Built-in Scikit-learn models for regression, classification, clustering, and anomaly detection." },
-                { title: "RAG & LLM Chat", icon: <Zap className="w-6 h-6"/>, desc: "Query your data in plain English. Powered by Groq's blazing fast LLaMA 3.1 70B and ChromaDB." },
-                { title: "Data Pipelines", icon: <Database className="w-6 h-6"/>, desc: "Drag-and-drop CSV uploads with automatic imputation, categorical encoding, and scaling." },
-                { title: "Predictive Forecasting", icon: <LineChart className="w-6 h-6"/>, desc: "Time-series forecasting with Gradient Boosting, featuring 95% confidence intervals." },
-                { title: "PDF Reports", icon: <FileText className="w-6 h-6"/>, desc: "Generate professional, branded PDF reports summarizing statistics, charts, and AI-driven insights." }
+                { title: "Smart Analytics", icon: <BarChart2 className="w-6 h-6" />, desc: "Automated insights and interactive Recharts visualizations tailored to your specific dataset columns." },
+                { title: "Machine Learning", icon: <BrainCircuit className="w-6 h-6" />, desc: "Built-in Scikit-learn models for regression, classification, clustering, and anomaly detection." },
+                { title: "RAG & LLM Chat", icon: <Zap className="w-6 h-6" />, desc: "Query your data in plain English. Powered by Groq's blazing fast LLaMA 3.1 70B and ChromaDB." },
+                { title: "Data Pipelines", icon: <Database className="w-6 h-6" />, desc: "Drag-and-drop CSV uploads with automatic imputation, categorical encoding, and scaling." },
+                { title: "Predictive Forecasting", icon: <LineChart className="w-6 h-6" />, desc: "Time-series forecasting with Gradient Boosting, featuring 95% confidence intervals." },
+                { title: "PDF Reports", icon: <FileText className="w-6 h-6" />, desc: "Generate professional, branded PDF reports summarizing statistics, charts, and AI-driven insights." }
               ].map((feat, i) => (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  key={i} 
+                  key={i}
                   className="p-8 bg-black border border-white/10 rounded-3xl hover:border-white/30 transition-colors group"
                 >
                   <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-white group-hover:text-black transition-all">
@@ -182,7 +185,7 @@ export default function LandingPage() {
         <section className="w-full py-32 px-6 lg:px-12 bg-black">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col lg:flex-row items-center gap-16">
-              <motion.div 
+              <motion.div
                 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
                 className="lg:w-1/2 space-y-8"
               >
@@ -202,7 +205,7 @@ export default function LandingPage() {
                     </motion.div>
                   ))}
                 </motion.div>
-                <motion.button 
+                <motion.button
                   variants={fadeIn}
                   onClick={() => setShowAuth(true)}
                   className="mt-8 px-8 py-4 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors"
@@ -211,7 +214,7 @@ export default function LandingPage() {
                 </motion.button>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -220,25 +223,37 @@ export default function LandingPage() {
               >
                 <div className="aspect-square md:aspect-video lg:aspect-square bg-gradient-to-tr from-zinc-900 to-zinc-800 rounded-3xl border border-white/10 shadow-2xl flex items-center justify-center p-8 overflow-hidden relative">
                   {/* Decorative UI Elements to simulate the app */}
-                  <div className="w-full h-full border border-white/5 bg-black rounded-xl p-4 flex flex-col gap-4 relative z-10 shadow-2xl">
-                     <div className="flex gap-2 mb-2">
-                       <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                       <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                       <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                     </div>
-                     <div className="h-8 bg-white/10 rounded w-1/3"></div>
-                     <div className="flex-1 flex gap-4">
-                       <div className="w-1/4 h-full bg-white/5 rounded"></div>
-                       <div className="w-3/4 h-full bg-white/5 rounded flex flex-col gap-4 p-4">
-                         <div className="h-32 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded flex items-end p-2 gap-2">
-                            {[40, 70, 45, 90, 65, 80, 55].map((h, j) => (
-                              <div key={j} className="flex-1 bg-white/20 rounded-t" style={{ height: `${h}%` }}></div>
-                            ))}
-                         </div>
-                         <div className="h-20 bg-white/5 rounded"></div>
-                       </div>
-                     </div>
-                  </div>
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-full h-full border border-white/5 bg-black rounded-xl p-4 flex flex-col gap-4 relative z-10 shadow-2xl"
+                  >
+                    <div className="flex gap-2 mb-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500/50 hover:bg-red-500 cursor-pointer transition-colors"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-500/50 hover:bg-yellow-500 cursor-pointer transition-colors"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-500/50 hover:bg-green-500 cursor-pointer transition-colors"></div>
+                    </div>
+                    <motion.div animate={{ width: ['30%', '40%', '30%'] }} transition={{ duration: 5, repeat: Infinity }} className="h-8 bg-white/10 rounded"></motion.div>
+                    <div className="flex-1 flex gap-4">
+                      <div className="w-1/4 h-full bg-white/5 rounded relative overflow-hidden">
+                        <motion.div animate={{ y: ['0%', '100%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="absolute inset-0 h-1/2 bg-gradient-to-b from-transparent via-white/5 to-transparent"></motion.div>
+                      </div>
+                      <div className="w-3/4 h-full bg-white/5 rounded flex flex-col gap-4 p-4">
+                        <div className="h-32 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded flex items-end p-2 gap-2">
+                          {[40, 70, 45, 90, 65, 80, 55].map((h, j) => (
+                            <motion.div
+                              key={j}
+                              initial={{ height: '0%' }}
+                              whileInView={{ height: `${h}%` }}
+                              transition={{ duration: 1, delay: j * 0.1 }}
+                              className="flex-1 bg-white/20 hover:bg-white/40 cursor-pointer rounded-t transition-colors"
+                            ></motion.div>
+                          ))}
+                        </div>
+                        <motion.div whileHover={{ scale: 1.02 }} className="h-20 bg-white/5 rounded cursor-pointer"></motion.div>
+                      </div>
+                    </div>
+                  </motion.div>
                   {/* Glow */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-white/5 blur-3xl rounded-full pointer-events-none"></div>
                 </div>
@@ -249,7 +264,7 @@ export default function LandingPage() {
 
         {/* Footer CTA */}
         <section className="w-full py-32 px-6 text-center border-t border-white/10 bg-gradient-to-b from-black to-zinc-950">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -258,7 +273,7 @@ export default function LandingPage() {
           >
             <h2 className="text-4xl md:text-6xl font-bold tracking-tight">Ready to unlock your data?</h2>
             <p className="text-xl text-gray-400">Join forward-thinking enterprises using AnalyticaGPT.</p>
-            <button 
+            <button
               onClick={() => setShowAuth(true)}
               className="px-10 py-5 bg-white text-black text-lg font-bold rounded-full hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.15)]"
             >
@@ -266,7 +281,7 @@ export default function LandingPage() {
             </button>
           </motion.div>
         </section>
-        
+
         {/* Simple Footer */}
         <footer className="w-full py-8 text-center text-zinc-600 text-sm border-t border-white/5">
           <p>© 2026 AnalyticaGPT. Enterprise Data Engine.</p>

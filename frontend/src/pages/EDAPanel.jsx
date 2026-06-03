@@ -1,20 +1,20 @@
 /**
  * EDAPanel — Intelligent Exploratory Data Analysis
- * Only shows meaningful distributions, skips IDs/constants, includes insights.
+ * Each chart has proper titles, axis labels, legends, and business insight cards.
  */
 
 import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
+  ResponsiveContainer, Legend, ScatterChart, Scatter, ZAxis, Cell,
 } from 'recharts';
-import { Loader2, Info, FlaskConical, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/Card';
+import { Loader2, Info, FlaskConical, ChevronDown, ChevronUp, AlertCircle, Lightbulb, Network, BarChart3 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import EmptyState from '../components/EmptyState';
 import { toast } from 'sonner';
-import { getEDA, getColumns, runStatTest } from '../services/api';
+import { getEDA, getColumns, runStatTest, getSummary } from '../services/api';
 import AIInsightCard from '../components/AIInsightCard';
 
 const TT = {
@@ -32,10 +32,52 @@ const TEST_TYPES = [
   { value: 'anova', label: 'One-way ANOVA', desc: 'Numeric vs. categorical group column' },
 ];
 
+/* ── Insight Card Component ─────────────────────────────── */
+function ChartInsightCard({ title, description, insights = [], recommendations = [] }) {
+  return (
+    <div className="border-l-4 border-l-[color:var(--color-primary)] bg-[color:var(--color-primary)]/[0.03] rounded-xl p-4 space-y-2.5">
+      <div className="flex items-start gap-2.5">
+        <Lightbulb className="w-4 h-4 text-[color:var(--color-primary)] mt-0.5 shrink-0" />
+        <div className="flex-1">
+          <p className="text-[10px] font-bold text-[color:var(--color-primary)] uppercase tracking-widest mb-1">
+            Insight — {title}
+          </p>
+          <p className="text-xs text-[var(--color-foreground)] leading-relaxed">{description}</p>
+        </div>
+      </div>
+      {insights.length > 0 && (
+        <div className="pl-6">
+          <ul className="space-y-0.5">
+            {insights.map((ins, i) => (
+              <li key={i} className="text-[11px] text-[var(--color-muted-foreground)] flex items-start gap-1.5">
+                <span className="text-[color:var(--color-primary)] font-bold">→</span> {ins}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {recommendations.length > 0 && (
+        <div className="pl-6">
+          <p className="text-[10px] font-bold text-[color:var(--color-success)] uppercase tracking-widest mb-0.5">Recommendations</p>
+          <ul className="space-y-0.5">
+            {recommendations.map((rec, i) => (
+              <li key={i} className="text-[11px] text-[var(--color-muted-foreground)] flex items-start gap-1.5">
+                <span className="text-[color:var(--color-success)] font-bold">✓</span> {rec}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EDAPanel() {
   const [data, setData] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cols, setCols] = useState(null);
+  const [tab, setTab] = useState('univariate');
 
   // Stat test state
   const [col1, setCol1] = useState('');
@@ -46,10 +88,11 @@ export default function EDAPanel() {
   const [statsOpen, setStatsOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([getEDA(), getColumns()])
-      .then(([eda, c]) => {
+    Promise.all([getEDA(), getColumns(), getSummary()])
+      .then(([eda, c, sum]) => {
         setData(eda);
         setCols(c);
+        setSummary(sum);
         if (c.all_columns?.length >= 2) {
           setCol1(c.all_columns[0]);
           setCol2(c.all_columns[1]);
@@ -92,7 +135,7 @@ export default function EDAPanel() {
       <div>
         <h2 className="text-2xl font-bold text-[var(--color-foreground)]">Exploratory Data Analysis</h2>
         <p className="text-[var(--color-muted-foreground)] text-sm">
-          Intelligent feature distributions and hypothesis testing
+          Intelligent feature distributions, hypothesis testing, and business insights
         </p>
       </div>
 
@@ -111,7 +154,21 @@ export default function EDAPanel() {
         </Card>
       )}
 
-      {/* ── Statistical Tests Section ── */}
+      {/* ── Tabs for Analysis Categories ── */}
+      <div className="flex gap-2 flex-wrap">
+        <Button variant={tab === 'univariate' ? 'default' : 'secondary'} size="sm" onClick={() => setTab('univariate')}>
+          <BarChart3 className="w-3.5 h-3.5 mr-2" /> Univariate Analysis
+        </Button>
+        <Button variant={tab === 'bivariate' ? 'default' : 'secondary'} size="sm" onClick={() => setTab('bivariate')}>
+          <FlaskConical className="w-3.5 h-3.5 mr-2" /> Bivariate Analysis
+        </Button>
+        <Button variant={tab === 'multivariate' ? 'default' : 'secondary'} size="sm" onClick={() => setTab('multivariate')}>
+          <Network className="w-3.5 h-3.5 mr-2" /> Multivariate Analysis
+        </Button>
+      </div>
+
+      {/* ── Bivariate Analysis: Statistical Tests ── */}
+      {tab === 'bivariate' && (
       <div className="rounded-2xl border border-[var(--color-border)] overflow-hidden">
         <button
           className="w-full flex items-center justify-between px-6 py-4 bg-[var(--color-card)] hover:bg-[var(--color-muted)] transition-colors"
@@ -168,9 +225,98 @@ export default function EDAPanel() {
           </div>
         )}
       </div>
+      )}
+
+      {/* ── Multivariate Analysis: Correlation Heatmap ── */}
+      {tab === 'multivariate' && summary?.correlation && Object.keys(summary.correlation).length >= 2 && (
+        <Card className="border-[color:var(--color-border)] shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Network className="w-5 h-5 text-[color:var(--color-primary)]" />
+              Multivariate Analysis: Correlation Heatmap
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto pb-4">
+              <div className="inline-flex flex-col min-w-full">
+                <div className="flex">
+                  <div className="w-32 shrink-0"></div>
+                  {Object.keys(summary.correlation).map((col) => (
+                    <div key={col} className="w-16 shrink-0 text-center text-[10px] text-[var(--color-muted-foreground)] font-medium uppercase truncate px-1" title={col}>
+                      {col.substring(0, 8)}
+                    </div>
+                  ))}
+                </div>
+                {Object.entries(summary.correlation).map(([rowCol, values]) => (
+                  <div key={rowCol} className="flex border-t border-[var(--color-border)]">
+                    <div className="w-32 shrink-0 pr-3 py-2 text-[10px] text-[var(--color-foreground)] font-medium uppercase truncate text-right flex items-center justify-end border-r border-[var(--color-border)]" title={rowCol}>
+                      {rowCol}
+                    </div>
+                    {Object.keys(summary.correlation).map((col) => {
+                      const val = values[col] || 0;
+                      // Calculate color: positive = blue, negative = red
+                      const isPositive = val >= 0;
+                      const intensity = Math.abs(val);
+                      
+                      // Using primary/danger colors with opacity based on correlation strength
+                      const bgClass = isPositive 
+                        ? `rgba(99, 102, 241, ${intensity * 0.8 + 0.1})` 
+                        : `rgba(239, 68, 68, ${intensity * 0.8 + 0.1})`;
+                        
+                      const textClass = intensity > 0.5 ? 'text-white font-bold' : 'text-[var(--color-foreground)]';
+
+                      return (
+                        <div 
+                          key={col} 
+                          className={`w-16 shrink-0 py-2 text-center text-[10px] flex items-center justify-center transition-opacity hover:opacity-80 cursor-default ${textClass}`}
+                          style={{ backgroundColor: rowCol === col ? 'var(--color-card)' : bgClass }}
+                          title={`${rowCol} vs ${col}: ${val.toFixed(3)}`}
+                        >
+                          {rowCol === col ? '-' : val.toFixed(2)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <ChartInsightCard 
+              title="Correlation Matrix"
+              description="This heatmap displays pairwise Pearson correlation coefficients between numeric variables. Values close to 1 (blue) indicate strong positive correlation, while values close to -1 (red) indicate strong negative correlation."
+              insights={
+                (() => {
+                  const strongCorrs = [];
+                  const keys = Object.keys(summary.correlation);
+                  for (let i = 0; i < keys.length; i++) {
+                    for (let j = i + 1; j < keys.length; j++) {
+                      const val = summary.correlation[keys[i]][keys[j]];
+                      if (Math.abs(val) > 0.7) {
+                        strongCorrs.push(`${keys[i]} & ${keys[j]} (${val > 0 ? 'positive' : 'negative'}, r=${val.toFixed(2)})`);
+                      }
+                    }
+                  }
+                  if (strongCorrs.length > 0) {
+                    return [
+                      `Found ${strongCorrs.length} strong relationships (|r| > 0.7)`,
+                      ...strongCorrs.slice(0, 3).map(c => `Strong link: ${c}`),
+                      strongCorrs.length > 3 ? `...and ${strongCorrs.length - 3} more` : null
+                    ].filter(Boolean);
+                  }
+                  return ["No strong linear correlations (|r| > 0.7) found among numeric variables."];
+                })()
+              }
+              recommendations={[
+                "Highly correlated features (r > 0.8) may cause multicollinearity in linear models. Consider removing one or using PCA.",
+                "Features strongly correlated with your target variable are excellent candidates for predictive modeling."
+              ]}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Numeric Distributions ── */}
-      {numericDists.length > 0 && (
+      {tab === 'univariate' && numericDists.length > 0 && (
         <>
           <h3 className="text-lg font-bold text-[var(--color-foreground)]">
             Numeric Distributions
@@ -180,54 +326,83 @@ export default function EDAPanel() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {numericDists.map(([col, dist]) => (
-              <Card key={col} className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-bold text-[var(--color-foreground)]">{col}</h4>
-                    <p className="text-xs text-[var(--color-muted-foreground)] uppercase tracking-widest">Histogram</p>
-                  </div>
-                  {dist.stats && (
-                    <div className="text-right">
-                      <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase">Mean / Median</p>
-                      <p className="font-mono text-xs text-[color:var(--color-primary)]">
-                        {dist.stats.mean} / {dist.stats.median}
-                      </p>
+              <div key={col} className="space-y-3">
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="font-bold text-[var(--color-foreground)]">{col}</h4>
+                      <p className="text-xs text-[var(--color-muted-foreground)] uppercase tracking-widest">Histogram — Frequency Distribution</p>
                     </div>
-                  )}
-                </div>
-
-                <div className="h-52 w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <BarChart data={dist.counts.map((c, i) => ({
-                      count: c,
-                      bin: dist.bins[i]?.toFixed?.(2) ?? String(dist.bins[i]),
-                    }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                      <XAxis dataKey="bin" stroke="var(--color-muted-foreground)" fontSize={9} tickLine={false} axisLine={false} />
-                      <YAxis stroke="var(--color-muted-foreground)" fontSize={9} tickLine={false} axisLine={false} />
-                      <Tooltip {...TT} />
-                      <Bar dataKey="count" fill="var(--color-primary)" radius={[4, 4, 0, 0]} opacity={0.85} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {dist.stats && (
-                  <div className="mt-3 flex gap-3 text-[10px] text-[var(--color-muted-foreground)]">
-                    <span>σ = {dist.stats.std}</span>
-                    <span>Skew = {dist.stats.skewness}</span>
-                    {Math.abs(dist.stats.skewness) > 1 && (
-                      <Badge variant="warning" className="text-[9px] py-0">Skewed</Badge>
+                    {dist.stats && (
+                      <div className="text-right">
+                        <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase">Mean / Median</p>
+                        <p className="font-mono text-xs text-[color:var(--color-primary)]">
+                          {dist.stats.mean} / {dist.stats.median}
+                        </p>
+                      </div>
                     )}
                   </div>
-                )}
-              </Card>
+
+                  <div className="h-52 w-full">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <BarChart data={dist.counts.map((c, i) => ({
+                        count: c,
+                        bin: dist.bins[i]?.toFixed?.(2) ?? String(dist.bins[i]),
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                        <XAxis
+                          dataKey="bin" stroke="var(--color-muted-foreground)" fontSize={9}
+                          tickLine={false} axisLine={false}
+                          label={{ value: 'Value Range (bins)', position: 'insideBottom', offset: -5, fontSize: 9, fill: 'var(--color-muted-foreground)' }}
+                        />
+                        <YAxis
+                          stroke="var(--color-muted-foreground)" fontSize={9}
+                          tickLine={false} axisLine={false}
+                          label={{ value: 'Frequency', angle: -90, position: 'insideLeft', offset: 10, fontSize: 9, fill: 'var(--color-muted-foreground)' }}
+                        />
+                        <Tooltip {...TT} formatter={(v) => [v, 'Count']} />
+                        <Bar dataKey="count" fill="var(--color-primary)" radius={[4, 4, 0, 0]} opacity={0.85} name="Record Count" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {dist.stats && (
+                    <div className="mt-3 flex gap-3 text-[10px] text-[var(--color-muted-foreground)]">
+                      <span>σ = {dist.stats.std}</span>
+                      <span>Skew = {dist.stats.skewness}</span>
+                      {Math.abs(dist.stats.skewness) > 1 && (
+                        <Badge variant="warning" className="text-[9px] py-0">Skewed</Badge>
+                      )}
+                    </div>
+                  )}
+                </Card>
+
+                {/* Insight below each numeric chart */}
+                <ChartInsightCard
+                  title={col}
+                  description={
+                    dist.stats
+                      ? `${col} has a mean of ${dist.stats.mean} and median of ${dist.stats.median}. ${Math.abs(dist.stats.skewness) > 1 ? `The distribution is significantly skewed (${dist.stats.skewness > 0 ? 'right' : 'left'}-skewed), indicating the ${dist.stats.skewness > 0 ? 'presence of high-value outliers' : 'concentration of values at the upper end'}.` : 'The distribution is approximately symmetric.'}`
+                      : `Distribution analysis for ${col}.`
+                  }
+                  insights={[
+                    dist.stats ? `Standard deviation: ${dist.stats.std} — ${dist.stats.std > dist.stats.mean * 0.5 ? 'high variability relative to mean' : 'moderate variability'}` : 'Statistics unavailable',
+                    dist.stats && Math.abs(dist.stats.mean - dist.stats.median) > dist.stats.std * 0.3 ? 'Mean-median gap suggests distribution is not centered — investigate outlier impact' : 'Mean and median are close — distribution is well-centered',
+                  ]}
+                  recommendations={
+                    dist.stats && Math.abs(dist.stats.skewness) > 1
+                      ? ['Consider log transformation to normalize this feature before regression']
+                      : ['Feature is well-distributed and ready for direct modeling']
+                  }
+                />
+              </div>
             ))}
           </div>
         </>
       )}
 
       {/* ── Categorical Distributions ── */}
-      {categoricalDists.length > 0 && (
+      {tab === 'univariate' && categoricalDists.length > 0 && (
         <>
           <h3 className="text-lg font-bold text-[var(--color-foreground)]">
             Categorical Distributions
@@ -236,49 +411,77 @@ export default function EDAPanel() {
             </span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {categoricalDists.map(([col, dist]) => (
-              <Card key={col} className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-bold text-[var(--color-foreground)]">{col}</h4>
-                    <p className="text-xs text-[var(--color-muted-foreground)] uppercase tracking-widest">
-                      Top values
-                    </p>
-                  </div>
-                  {data.cardinality[col] && (
-                    <div className="text-right">
-                      <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase">Unique</p>
-                      <p className="font-mono text-xs text-[color:var(--color-accent)]">{data.cardinality[col]}</p>
-                    </div>
-                  )}
-                </div>
+            {categoricalDists.map(([col, dist]) => {
+              const topLabel = dist.labels?.[0] || 'N/A';
+              const topVal = dist.values?.[0] || 0;
+              const totalVal = dist.values?.reduce((a, b) => a + b, 0) || 1;
+              const topPct = ((topVal / totalVal) * 100).toFixed(1);
+              const isDominated = topPct > 60;
 
-                <div className="h-52 w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <BarChart
-                      layout="vertical"
-                      data={dist.labels.map((l, i) => ({ label: String(l), value: dist.values[i] }))}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis
-                        dataKey="label" type="category"
-                        stroke="var(--color-muted-foreground)" fontSize={9} width={90}
-                        tickLine={false} axisLine={false}
-                        tickFormatter={(v) => v.length > 14 ? v.slice(0, 14) + '…' : v}
-                      />
-                      <Tooltip {...TT} />
-                      <Bar dataKey="value" fill="var(--color-accent)" radius={[0, 4, 4, 0]} opacity={0.75} />
-                    </BarChart>
-                  </ResponsiveContainer>
+              return (
+                <div key={col} className="space-y-3">
+                  <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-bold text-[var(--color-foreground)]">{col}</h4>
+                        <p className="text-xs text-[var(--color-muted-foreground)] uppercase tracking-widest">
+                          Top Values — Frequency Count
+                        </p>
+                      </div>
+                      {data.cardinality[col] && (
+                        <div className="text-right">
+                          <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase">Unique</p>
+                          <p className="font-mono text-xs text-[color:var(--color-accent)]">{data.cardinality[col]}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="h-52 w-full">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                        <BarChart
+                          layout="vertical"
+                          data={dist.labels.map((l, i) => ({ label: String(l), value: dist.values[i] }))}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                          <XAxis
+                            type="number"
+                            tick={{ fill: 'var(--color-muted-foreground)', fontSize: 9 }}
+                            label={{ value: 'Frequency Count', position: 'insideBottom', offset: -5, fontSize: 9, fill: 'var(--color-muted-foreground)' }}
+                          />
+                          <YAxis
+                            dataKey="label" type="category"
+                            stroke="var(--color-muted-foreground)" fontSize={9} width={90}
+                            tickLine={false} axisLine={false}
+                            tickFormatter={(v) => v.length > 14 ? v.slice(0, 14) + '…' : v}
+                          />
+                          <Tooltip {...TT} formatter={(v) => [v, 'Count']} />
+                          <Bar dataKey="value" fill="var(--color-accent)" radius={[0, 4, 4, 0]} opacity={0.75} name="Record Count" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+
+                  <ChartInsightCard
+                    title={col}
+                    description={`Most frequent value is "${topLabel}" (${topPct}% of records). ${isDominated ? 'This feature is dominated by a single category, which may reduce its predictive power.' : 'Values are reasonably distributed across categories.'}`}
+                    insights={[
+                      `${data.cardinality[col] || dist.labels.length} unique categories detected`,
+                      isDominated ? '⚠ Class imbalance detected — may need oversampling for classification tasks' : '✓ No severe class imbalance',
+                    ]}
+                    recommendations={
+                      isDominated
+                        ? ['Consider grouping rare categories into an "Other" bucket for cleaner modeling']
+                        : ['Feature is well-distributed for encoding and modeling']
+                    }
+                  />
                 </div>
-              </Card>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
 
-      {numericDists.length === 0 && categoricalDists.length === 0 && (
+      {tab === 'univariate' && numericDists.length === 0 && categoricalDists.length === 0 && (
         <EmptyState icon={FlaskConical} title="No Distributions" description="We could not generate meaningful distributions for this dataset." />
       )}
 
@@ -322,79 +525,99 @@ function StatTestResult({ result }) {
   const effectLabel = effectKey?.replace('effect_size_', '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
-      <div className={`px-4 py-3 flex items-center justify-between ${sig ? 'bg-[color:var(--color-success)]/10 border-b border-[color:var(--color-success)]/20' : 'bg-[var(--color-muted)] border-b border-[var(--color-border)]'}`}>
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-sm text-[var(--color-foreground)]">{testLabels[result.test_type] || result.test_type}</p>
-          <span className="text-[var(--color-muted-foreground)] text-sm">·</span>
-          <code className="text-xs text-[color:var(--color-primary)]">{result.col1}</code>
-          <span className="text-[var(--color-muted-foreground)] text-xs">vs</span>
-          <code className="text-xs text-[color:var(--color-primary)]">{result.col2}</code>
+    <div className="space-y-3">
+      <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
+        <div className={`px-4 py-3 flex items-center justify-between ${sig ? 'bg-[color:var(--color-success)]/10 border-b border-[color:var(--color-success)]/20' : 'bg-[var(--color-muted)] border-b border-[var(--color-border)]'}`}>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-sm text-[var(--color-foreground)]">{testLabels[result.test_type] || result.test_type}</p>
+            <span className="text-[var(--color-muted-foreground)] text-sm">·</span>
+            <code className="text-xs text-[color:var(--color-primary)]">{result.col1}</code>
+            <span className="text-[var(--color-muted-foreground)] text-xs">vs</span>
+            <code className="text-xs text-[color:var(--color-primary)]">{result.col2}</code>
+          </div>
+          <Badge variant={sig ? 'success' : 'secondary'}>{sig ? '✓ Significant' : 'Not Significant'}</Badge>
         </div>
-        <Badge variant={sig ? 'success' : 'secondary'}>{sig ? '✓ Significant' : 'Not Significant'}</Badge>
-      </div>
 
-      <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="text-center">
-          <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">Test Statistic</p>
-          <p className="text-base font-bold text-[var(--color-foreground)] mt-1 font-mono">{result.statistic?.toFixed(4)}</p>
+        <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="text-center">
+            <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">Test Statistic</p>
+            <p className="text-base font-bold text-[var(--color-foreground)] mt-1 font-mono">{result.statistic?.toFixed(4)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">p-value</p>
+            <p className={`text-base font-bold mt-1 font-mono ${sig ? 'text-[color:var(--color-success)]' : 'text-[var(--color-muted-foreground)]'}`}>
+              {result.p_value < 0.0001 ? '< 0.0001' : result.p_value?.toFixed(4)}
+            </p>
+          </div>
+          {effectKey && result[effectKey] !== undefined && (
+            <div className="text-center">
+              <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">{effectLabel}</p>
+              <p className="text-base font-bold text-[color:var(--color-secondary)] mt-1 font-mono">{result[effectKey]?.toFixed(4)}</p>
+            </div>
+          )}
+          {result.degrees_of_freedom !== undefined && (
+            <div className="text-center">
+              <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">Degrees of Freedom</p>
+              <p className="text-base font-bold text-[var(--color-muted-foreground)] mt-1 font-mono">{result.degrees_of_freedom}</p>
+            </div>
+          )}
         </div>
-        <div className="text-center">
-          <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">p-value</p>
-          <p className={`text-base font-bold mt-1 font-mono ${sig ? 'text-[color:var(--color-success)]' : 'text-[var(--color-muted-foreground)]'}`}>
-            {result.p_value < 0.0001 ? '< 0.0001' : result.p_value?.toFixed(4)}
+
+        {result.group_means && (
+          <div className="px-4 pb-4">
+            <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase mb-2">Group Means ({result.numeric_column})</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(result.group_means).map(([grp, mean]) => (
+                <span key={grp} className="text-xs bg-[var(--color-muted)] rounded-lg px-2.5 py-1 font-mono">
+                  <span className="text-[var(--color-muted-foreground)]">{grp}: </span>
+                  <span className="text-[var(--color-foreground)]">{mean}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.mean_col1 !== undefined && (
+          <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+            <div className="bg-[var(--color-muted)] rounded-xl p-3">
+              <p className="text-[10px] text-[var(--color-muted-foreground)] mb-1 uppercase">{result.col1}</p>
+              <p className="text-sm font-bold text-[var(--color-foreground)]">
+                μ = {result.mean_col1} <span className="text-[var(--color-muted-foreground)] font-normal">σ = {result.std_col1}</span>
+              </p>
+            </div>
+            <div className="bg-[var(--color-muted)] rounded-xl p-3">
+              <p className="text-[10px] text-[var(--color-muted-foreground)] mb-1 uppercase">{result.col2}</p>
+              <p className="text-sm font-bold text-[var(--color-foreground)]">
+                μ = {result.mean_col2} <span className="text-[var(--color-muted-foreground)] font-normal">σ = {result.std_col2}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pb-4">
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed bg-[var(--color-muted)] rounded-xl p-3">
+            {result.interpretation}
           </p>
         </div>
-        {effectKey && result[effectKey] !== undefined && (
-          <div className="text-center">
-            <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">{effectLabel}</p>
-            <p className="text-base font-bold text-[color:var(--color-secondary)] mt-1 font-mono">{result[effectKey]?.toFixed(4)}</p>
-          </div>
-        )}
-        {result.degrees_of_freedom !== undefined && (
-          <div className="text-center">
-            <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase tracking-wider">Degrees of Freedom</p>
-            <p className="text-base font-bold text-[var(--color-muted-foreground)] mt-1 font-mono">{result.degrees_of_freedom}</p>
-          </div>
-        )}
       </div>
 
-      {result.group_means && (
-        <div className="px-4 pb-4">
-          <p className="text-[10px] text-[var(--color-muted-foreground)] uppercase mb-2">Group Means ({result.numeric_column})</p>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(result.group_means).map(([grp, mean]) => (
-              <span key={grp} className="text-xs bg-[var(--color-muted)] rounded-lg px-2.5 py-1 font-mono">
-                <span className="text-[var(--color-muted-foreground)]">{grp}: </span>
-                <span className="text-[var(--color-foreground)]">{mean}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {result.mean_col1 !== undefined && (
-        <div className="px-4 pb-4 grid grid-cols-2 gap-3">
-          <div className="bg-[var(--color-muted)] rounded-xl p-3">
-            <p className="text-[10px] text-[var(--color-muted-foreground)] mb-1 uppercase">{result.col1}</p>
-            <p className="text-sm font-bold text-[var(--color-foreground)]">
-              μ = {result.mean_col1} <span className="text-[var(--color-muted-foreground)] font-normal">σ = {result.std_col1}</span>
-            </p>
-          </div>
-          <div className="bg-[var(--color-muted)] rounded-xl p-3">
-            <p className="text-[10px] text-[var(--color-muted-foreground)] mb-1 uppercase">{result.col2}</p>
-            <p className="text-sm font-bold text-[var(--color-foreground)]">
-              μ = {result.mean_col2} <span className="text-[var(--color-muted-foreground)] font-normal">σ = {result.std_col2}</span>
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="px-4 pb-4">
-        <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed bg-[var(--color-muted)] rounded-xl p-3">
-          {result.interpretation}
-        </p>
-      </div>
+      {/* Stat test insight */}
+      <ChartInsightCard
+        title="Hypothesis Test Result"
+        description={sig
+          ? `The test found a statistically significant relationship between "${result.col1}" and "${result.col2}" (p < 0.05). This means the observed difference is unlikely due to random chance.`
+          : `No statistically significant relationship found between "${result.col1}" and "${result.col2}" (p ≥ 0.05). The observed differences could be due to random variation.`
+        }
+        insights={[
+          `Test type: ${testLabels[result.test_type] || result.test_type}`,
+          `p-value: ${result.p_value < 0.0001 ? '< 0.0001' : result.p_value?.toFixed(4)} (significance threshold: 0.05)`,
+          sig ? 'This relationship has practical implications for business decisions' : 'Consider increasing sample size or testing with different variables',
+        ]}
+        recommendations={sig
+          ? ['Investigate the causal mechanism behind this relationship', 'Factor this relationship into predictive models']
+          : ['Try testing with related variables or subsets of the data', 'Consider non-linear relationships that Pearson tests may miss']
+        }
+      />
     </div>
   );
 }

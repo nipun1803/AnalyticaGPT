@@ -940,19 +940,6 @@ async def create_pin(req: PinCreateRequest, user: User = Depends(get_current_use
         created_at=pin.created_at.isoformat()
     )
 
-@router.get("/pins/{pin_id}", response_model=PinResponse)
-async def get_pin(pin_id: str, db: Session = Depends(get_db)):
-    """Get a shared pin by ID (public access allowed)."""
-    pin = db.query(SharedPin).filter(SharedPin.id == pin_id).first()
-    if not pin:
-        raise HTTPException(status_code=404, detail="Pin not found")
-    return PinResponse(
-        id=pin.id,
-        title=pin.title,
-        content_type=pin.content_type,
-        content_data=json.loads(pin.content_data),
-        created_at=pin.created_at.isoformat()
-    )
 
 @router.get("/pins/gallery", response_model=List[PinResponse])
 async def list_all_pins(db: Session = Depends(get_db)):
@@ -981,6 +968,20 @@ async def list_user_pins(user: User = Depends(get_current_user), db: Session = D
             created_at=p.created_at.isoformat()
         ) for p in pins
     ]
+
+@router.get("/pins/{pin_id}", response_model=PinResponse)
+async def get_pin(pin_id: str, db: Session = Depends(get_db)):
+    """Get a shared pin by ID (public access allowed)."""
+    pin = db.query(SharedPin).filter(SharedPin.id == pin_id).first()
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin not found")
+    return PinResponse(
+        id=pin.id,
+        title=pin.title,
+        content_type=pin.content_type,
+        content_data=json.loads(pin.content_data),
+        created_at=pin.created_at.isoformat()
+    )
 @router.post("/ml/forecast", response_model=ForecastResponse)
 async def run_forecasting(req: ForecastRequest, user: User = Depends(get_current_user)):
     """Run Time-Series Forecasting."""
@@ -1014,6 +1015,8 @@ async def generate_report(role: str = Query(default="analyst"), user: User = Dep
     insights = _generator.generate_insights(stats, role=role)
     chart_insights = _generator.generate_chart_insights(stats, role=role)
 
+    correlation = get_correlation_matrix(state["df_raw"])
+
     filename = state["report_generator"].generate_report(
         dataset_name=state["dataset_name"],
         summary_stats=stats,
@@ -1021,6 +1024,7 @@ async def generate_report(role: str = Query(default="analyst"), user: User = Dep
         chart_insights=chart_insights,
         ml_results=state["ml_results"].get("regression"),
         anomaly_results=state["ml_results"].get("anomaly"),
+        correlation=correlation,
     )
 
     return ReportResponse(

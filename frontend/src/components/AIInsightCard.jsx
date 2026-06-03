@@ -29,6 +29,7 @@ export default function AIInsightCard({ type, data, role = 'analyst', className 
   }, [type, data, role]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchInsight();
   }, [fetchInsight]);
 

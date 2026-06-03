@@ -18,7 +18,6 @@ except ImportError:
         sys.modules['distutils'] = distutils
     except ImportError:
         pass
-
 from config import settings
 from database import init_db
 from api.routes import router as api_router

@@ -43,7 +43,7 @@ export default function AuthPage() {
       {/* Background Grid */}
       <div className="absolute inset-0 pointer-events-none opacity-10 dark:opacity-20" style={{ backgroundImage: 'linear-gradient(#666 1px, transparent 1px), linear-gradient(90deg, #666 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -81,10 +81,10 @@ export default function AuthPage() {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                       <Input 
                         aria-label="Full Name"
-                        placeholder="John Doe" 
-                        value={fullName} 
-                        onChange={(e) => setFullName(e.target.value)} 
-                        className="pl-10" 
+                        placeholder="John Doe"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="pl-10"
                       />
                     </div>
                   </div>
@@ -94,11 +94,11 @@ export default function AuthPage() {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                       <Input 
                         aria-label="Username"
-                        placeholder="johndoe" 
-                        value={username} 
-                        onChange={(e) => setUsername(e.target.value)} 
-                        className="pl-10" 
-                        required 
+                        placeholder="johndoe"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="pl-10"
+                        required
                       />
                     </div>
                   </div>
@@ -111,12 +111,12 @@ export default function AuthPage() {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted-foreground)]" />
                   <Input 
                     aria-label="Email Address"
-                    type="email" 
-                    placeholder="you@example.com" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    className="pl-10" 
-                    required 
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
                   />
                 </div>
               </div>
