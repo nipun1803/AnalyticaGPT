@@ -50,12 +50,13 @@ async def register(req: RegisterRequest, response: Response, db: Session = Depen
     return AuthResponse(
         user=_user_response(user),
         message="Account created successfully",
+        token=token,
     )
 
 
 @router.post("/login", response_model=AuthResponse)
 async def login(req: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Log in with email + password. Sets httpOnly cookie."""
+    """Log in with email + password. Sets httpOnly cookie and returns token."""
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -73,6 +74,7 @@ async def login(req: LoginRequest, response: Response, db: Session = Depends(get
     return AuthResponse(
         user=_user_response(user),
         message="Logged in successfully",
+        token=token,
     )
 
 

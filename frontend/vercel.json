@@ -1,5 +1,16 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:match*",
+      "destination": "https://nipun2006-analyticagpt.hf.space/api/:match*"
+    },
+    {
+      "source": "/reports/:match*",
+      "destination": "https://nipun2006-analyticagpt.hf.space/reports/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

@@ -6,7 +6,6 @@ Includes intelligent chunking and caching.
 
 import pandas as pd
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Tuple
 from loguru import logger
 
@@ -21,9 +20,10 @@ class EmbeddingService:
         self._model = None
 
     @property
-    def model(self) -> SentenceTransformer:
+    def model(self):
         """Lazy-load the embedding model."""
         if self._model is None:
+            from sentence_transformers import SentenceTransformer
             logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL}")
             self._model = SentenceTransformer(settings.EMBEDDING_MODEL, device="cpu")
         return self._model

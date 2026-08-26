@@ -4,8 +4,6 @@ Manages ChromaDB vector store and implements hybrid search (keyword + semantic).
 Designed to be interchangeable — swap ChromaDB for Pinecone by replacing this module.
 """
 
-import chromadb
-from chromadb.config import Settings as ChromaSettings
 import numpy as np
 from typing import List, Dict, Any, Optional
 from loguru import logger
@@ -27,6 +25,7 @@ class VectorRetriever:
     @property
     def client(self):
         if self._client is None:
+            import chromadb
             self._client = chromadb.PersistentClient(
                 path=settings.CHROMA_PERSIST_DIR,
             )

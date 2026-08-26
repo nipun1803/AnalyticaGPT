@@ -2,7 +2,7 @@
 InsightForge AI — FastAPI Application Entry Point
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -59,15 +59,27 @@ async def lifespan(app: FastAPI):
     # Initialize Cache (Redis with In-Memory fallback)
     try:
         if settings.REDIS_URL and settings.REDIS_URL.startswith("redis"):
+            import asyncio
+            from urllib.parse import urlparse
+            parsed = urlparse(settings.REDIS_URL)
+            host = parsed.hostname
+            port = parsed.port or 6379
+
+            # Quick probe with 1.5s timeout to prevent hanging on unreachable hosts
+            loop = asyncio.get_running_loop()
+            await asyncio.wait_for(
+                loop.getaddrinfo(host, port),
+                timeout=1.5
+            )
+
             redis = aioredis.from_url(
                 settings.REDIS_URL,
                 encoding="utf8",
                 decode_responses=True,
-                socket_connect_timeout=2,
-                socket_timeout=2,
+                socket_connect_timeout=1.5,
+                socket_timeout=1.5,
             )
-            import asyncio
-            await asyncio.wait_for(redis.ping(), timeout=2.0)
+            await asyncio.wait_for(redis.ping(), timeout=1.5)
             FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
             logger.info("Cache initialized with Redis")
         else:
@@ -94,9 +106,31 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # ── CORS ───────────────────────────────────────────────────────
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if request.method == "OPTIONS":
+        res = Response(status_code=200)
+    else:
+        try:
+            res = await call_next(request)
+        except Exception as e:
+            logger.error(f"Unhandled exception in request: {e}")
+            from fastapi.responses import JSONResponse
+            res = JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+    
+    if origin:
+        res.headers["Access-Control-Allow-Origin"] = origin
+        res.headers["Access-Control-Allow-Credentials"] = "true"
+        res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
+        res.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, User-Agent, X-Requested-With, *"
+        res.headers["Access-Control-Expose-Headers"] = "*"
+        res.headers["Access-Control-Max-Age"] = "86400"
+    return res
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=["*"],
     allow_origin_regex=r"^https?:\/\/.*$",
     allow_credentials=True,
     allow_methods=["*"],

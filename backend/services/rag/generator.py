@@ -5,7 +5,6 @@ Interfaces with the Groq API for fast inference, with role-based prompting and s
 
 import json
 from typing import AsyncGenerator, Dict, List, Optional
-from groq import Groq
 from loguru import logger
 
 from config import settings
@@ -62,6 +61,7 @@ class LLMGenerator:
 
     def _get_groq_client(self):
         if self._groq_client is None:
+            from groq import Groq
             self._groq_client = Groq(api_key=settings.GROQ_API_KEY)
         return self._groq_client
 

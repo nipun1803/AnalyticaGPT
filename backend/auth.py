@@ -70,8 +70,13 @@ def clear_auth_cookie(response: Response):
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Extract user from httpOnly cookie JWT. Raises 401 if invalid."""
-    token = request.cookies.get(COOKIE_NAME)
+    """Extract user from Authorization Bearer header or httpOnly cookie JWT. Raises 401 if invalid."""
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    if not token:
+        token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 

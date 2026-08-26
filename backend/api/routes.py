@@ -68,7 +68,6 @@ from services.ml.models import MLEngine
 from services.rag.embed import EmbeddingService
 from services.rag.retriever import VectorRetriever
 from services.rag.generator import LLMGenerator
-from services.report import ReportGenerator
 
 router = APIRouter()
 
@@ -90,7 +89,7 @@ def get_user_state(user_id: int) -> dict:
             "dataset_id": None,
             "preprocessor": DataPreprocessor(),
             "ml_engine": MLEngine(),
-            "report_generator": ReportGenerator(),
+            "report_generator": None,
             "ml_results": {},
             "chat_history": []
         }
@@ -1016,6 +1015,10 @@ async def generate_report(role: str = Query(default="analyst"), user: User = Dep
     chart_insights = _generator.generate_chart_insights(stats, role=role)
 
     correlation = get_correlation_matrix(state["df_raw"])
+
+    if not state.get("report_generator"):
+        from services.report import ReportGenerator
+        state["report_generator"] = ReportGenerator()
 
     filename = state["report_generator"].generate_report(
         dataset_name=state["dataset_name"],

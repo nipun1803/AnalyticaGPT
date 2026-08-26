@@ -56,6 +56,7 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     message: str
+    token: Optional[str] = None
 
 
 # ── Data Requests ──────────────────────────────────────────────

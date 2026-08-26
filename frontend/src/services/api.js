@@ -5,14 +5,40 @@
 import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const API_BASE = `${API_BASE_URL}/api`;
+const API_BASE = API_BASE_URL ? `${API_BASE_URL.replace(/\/+$/, "")}/api` : "/api";
 
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 120000,
-  withCredentials: true, // Send cookies with every request
+  withCredentials: true, // Send cookies when supported
   headers: { Accept: "application/json" },
 });
+
+// Attach JWT Bearer token from localStorage to every request
+api.interceptors.request.use((config) => {
+  try {
+    const token = localStorage.getItem("insightforge_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore storage access issues
+  }
+  return config;
+});
+
+// Clear token on 401
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response && err.response.status === 401) {
+      try {
+        localStorage.removeItem("insightforge_token");
+      } catch {}
+    }
+    return Promise.reject(err);
+  }
+);
 
 // ── Auth ──────────────────────────────────────────────────────
 export async function register(email, username, password, fullName = "") {
@@ -22,17 +48,33 @@ export async function register(email, username, password, fullName = "") {
     password,
     full_name: fullName,
   });
+  if (res.data && res.data.token) {
+    try {
+      localStorage.setItem("insightforge_token", res.data.token);
+    } catch {}
+  }
   return res.data;
 }
 
 export async function login(email, password) {
   const res = await api.post("/auth/login", { email, password });
+  if (res.data && res.data.token) {
+    try {
+      localStorage.setItem("insightforge_token", res.data.token);
+    } catch {}
+  }
   return res.data;
 }
 
 export async function logout() {
-  const res = await api.post("/auth/logout");
-  return res.data;
+  try {
+    await api.post("/auth/logout");
+  } finally {
+    try {
+      localStorage.removeItem("insightforge_token");
+    } catch {}
+  }
+  return { message: "Logged out successfully" };
 }
 
 export async function getMe() {
