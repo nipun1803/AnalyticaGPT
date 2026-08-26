@@ -35,16 +35,78 @@ ROLE_PROMPTS = {
 
 
 class LLMGenerator:
-    """Handles LLM interaction with Groq for RAG-based generation."""
+    """Handles LLM interaction with Groq and NVIDIA NIM for RAG-based generation."""
 
     def __init__(self):
-        self._client = None
+        self._groq_client = None
+        self._nvidia_client = None
 
-    @property
-    def client(self) -> Groq:
-        if self._client is None:
-            self._client = Groq(api_key=settings.GROQ_API_KEY)
-        return self._client
+    def _get_provider_info(self):
+        """Determine active client, model, and backup info based on config."""
+        provider = (settings.LLM_PROVIDER or "groq").lower().strip()
+        
+        has_groq = bool(settings.GROQ_API_KEY and not settings.GROQ_API_KEY.startswith("your_groq"))
+        has_nvidia = bool(settings.NVIDIA_API_KEY and not settings.NVIDIA_API_KEY.startswith("your_nvidia"))
+
+        if provider == "nvidia" and has_nvidia:
+            return self._get_nvidia_client(), settings.NVIDIA_MODEL, "nvidia"
+        elif provider == "groq" and has_groq:
+            return self._get_groq_client(), settings.GROQ_MODEL, "groq"
+        elif has_nvidia:
+            return self._get_nvidia_client(), settings.NVIDIA_MODEL, "nvidia"
+        elif has_groq:
+            return self._get_groq_client(), settings.GROQ_MODEL, "groq"
+        else:
+            # Default to Groq even if key placeholder is present
+            return self._get_groq_client(), settings.GROQ_MODEL, "groq"
+
+    def _get_groq_client(self):
+        if self._groq_client is None:
+            self._groq_client = Groq(api_key=settings.GROQ_API_KEY)
+        return self._groq_client
+
+    def _get_nvidia_client(self):
+        if self._nvidia_client is None:
+            from openai import OpenAI
+            self._nvidia_client = OpenAI(
+                base_url=settings.NVIDIA_BASE_URL,
+                api_key=settings.NVIDIA_API_KEY,
+            )
+        return self._nvidia_client
+
+    def _get_fallback_info(self, current_provider: str):
+        """Returns secondary client and model if configured, or None."""
+        has_groq = bool(settings.GROQ_API_KEY and not settings.GROQ_API_KEY.startswith("your_groq"))
+        has_nvidia = bool(settings.NVIDIA_API_KEY and not settings.NVIDIA_API_KEY.startswith("your_nvidia"))
+
+        if current_provider == "nvidia" and has_groq:
+            return self._get_groq_client(), settings.GROQ_MODEL, "groq"
+        elif current_provider == "groq" and has_nvidia:
+            return self._get_nvidia_client(), settings.NVIDIA_MODEL, "nvidia"
+        return None, None, None
+
+    def _call_chat_completion(self, messages: List[Dict], temperature: float = 0.3, max_tokens: int = 2048, response_format=None, top_p: float = 0.9):
+        """Execute chat completion with automatic fallback between NVIDIA NIM and Groq."""
+        client, model, provider = self._get_provider_info()
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": top_p,
+        }
+        if response_format:
+            kwargs["response_format"] = response_format
+
+        try:
+            return client.chat.completions.create(**kwargs), provider, model
+        except Exception as primary_err:
+            fallback_client, fallback_model, fallback_provider = self._get_fallback_info(provider)
+            if fallback_client:
+                logger.warning(f"Primary LLM provider {provider} failed ({primary_err}). Falling back to {fallback_provider}...")
+                kwargs["model"] = fallback_model
+                return fallback_client.chat.completions.create(**kwargs), fallback_provider, fallback_model
+            raise primary_err
 
     def generate(
         self,
@@ -77,15 +139,9 @@ class LLMGenerator:
         messages.append({"role": "user", "content": user_message})
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=2048,
-                top_p=0.9,
-            )
+            response, used_provider, used_model = self._call_chat_completion(messages, temperature=0.3, max_tokens=2048)
             answer = response.choices[0].message.content
-            logger.info(f"LLM generated response ({len(answer)} chars) for role={role}")
+            logger.info(f"LLM generated response ({len(answer)} chars) using {used_provider}:{used_model} for role={role}")
             return answer
         except Exception as e:
             logger.error(f"LLM generation failed: {e}")
@@ -98,7 +154,7 @@ class LLMGenerator:
         role: str = "analyst",
         chat_history: Optional[List[Dict]] = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream LLM response token-by-token for SSE."""
+        """Stream LLM response token-by-token for SSE with fallback."""
         system_prompt = ROLE_PROMPTS.get(role, ROLE_PROMPTS["analyst"])
         context_text = self._format_context(context_docs)
 
@@ -118,9 +174,10 @@ class LLMGenerator:
         )
         messages.append({"role": "user", "content": user_message})
 
+        client, model, provider_name = self._get_provider_info()
         try:
-            stream = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
+            stream = client.chat.completions.create(
+                model=model,
                 messages=messages,
                 temperature=0.3,
                 max_tokens=2048,
@@ -128,10 +185,27 @@ class LLMGenerator:
                 stream=True,
             )
             for chunk in stream:
-                if chunk.choices[0].delta.content:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
         except Exception as e:
-            logger.error(f"LLM streaming failed: {e}")
+            logger.warning(f"LLM streaming failed on {provider_name} ({e}), attempting fallback...")
+            fallback_client, fallback_model, fallback_provider = self._get_fallback_info(provider_name)
+            if fallback_client:
+                try:
+                    fallback_stream = fallback_client.chat.completions.create(
+                        model=fallback_model,
+                        messages=messages,
+                        temperature=0.3,
+                        max_tokens=2048,
+                        top_p=0.9,
+                        stream=True,
+                    )
+                    for chunk in fallback_stream:
+                        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                    return
+                except Exception as fb_err:
+                    logger.error(f"Fallback streaming failed on {fallback_provider}: {fb_err}")
             yield f"\n\n[Error: {str(e)}]"
 
     def generate_insights(
@@ -160,12 +234,7 @@ class LLMGenerator:
         ]
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=messages,
-                temperature=0.4,
-                max_tokens=2048,
-            )
+            response, used_provider, _ = self._call_chat_completion(messages, temperature=0.4, max_tokens=2048)
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"Insight generation failed: {e}")
@@ -193,9 +262,8 @@ class LLMGenerator:
             },
         ]
         try:
-            response = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=messages,
+            response, used_provider, _ = self._call_chat_completion(
+                messages,
                 temperature=0.3,
                 response_format={"type": "json_object"},
             )
@@ -217,13 +285,11 @@ class LLMGenerator:
             }
         ]
         try:
-            response = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=messages,
+            response, used_provider, _ = self._call_chat_completion(
+                messages,
                 temperature=0.7,
                 response_format={"type": "json_object"},
             )
-            # The prompt asks for a JSON array, but with json_object we might get {"suggestions": [...]}
             res = json.loads(response.choices[0].message.content)
             if isinstance(res, dict):
                  return list(res.values())[0] if res.values() else []
@@ -231,6 +297,7 @@ class LLMGenerator:
         except Exception as e:
             logger.error(f"Schema suggestion failed: {e}")
             return ["What are the key trends in this data?", "How do different variables correlate?", "Can you summarize the outliers?"]
+
     def generate_contextual_insight(
         self,
         analysis_type: str,
@@ -275,12 +342,7 @@ class LLMGenerator:
         ]
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=300,
-            )
+            response, used_provider, _ = self._call_chat_completion(messages, temperature=0.3, max_tokens=300)
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"Contextual insight generation failed: {e}")

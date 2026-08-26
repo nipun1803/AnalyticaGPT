@@ -14,6 +14,7 @@ scipy>=1.14.0
 
 # GenAI & Embeddings
 groq>=0.13.0
+openai>=1.0.0
 sentence-transformers>=3.1.1
 chromadb>=0.5.7
 
