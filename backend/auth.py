@@ -7,7 +7,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
-from jose import jwt, JWTError
+try:
+    import jwt
+    from jwt import PyJWTError as JWTError
+except ImportError:
+    from jose import jwt, JWTError
 from fastapi import HTTPException, Request, Response, Depends, status
 from sqlalchemy.orm import Session
 

@@ -59,7 +59,15 @@ async def lifespan(app: FastAPI):
     # Initialize Cache (Redis with In-Memory fallback)
     try:
         if settings.REDIS_URL and settings.REDIS_URL.startswith("redis"):
-            redis = aioredis.from_url(settings.REDIS_URL, encoding="utf8", decode_responses=True)
+            redis = aioredis.from_url(
+                settings.REDIS_URL,
+                encoding="utf8",
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+            )
+            import asyncio
+            await asyncio.wait_for(redis.ping(), timeout=2.0)
             FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
             logger.info("Cache initialized with Redis")
         else:
@@ -128,4 +136,4 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=7860, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=7860, reload=False)
